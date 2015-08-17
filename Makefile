@@ -11,9 +11,7 @@
 TOOLKIT=C:\Program Files (x86)\Microsoft Visual C++ Toolkit 2003
 PSDK=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.0A
 ## Uncomment to have newly compiled dlls copied to your mod's Assets directory
-## To support use of this, .gitignore is set up to *ignore* changes to the Makefile.
-## Should you change the Makefile, for whatever reason, please be aware you may need
-## to use a hammer to make git pick up your changes.
+## Please do not commit changes to the Makefile solely to enable this.
 #YOURMOD=C:\Program Files (x86)\Firaxis Games\Sid Meier's Civilization 4\Beyond the Sword\Mods\Final Frontier Plus
 
 #### Tools ####
