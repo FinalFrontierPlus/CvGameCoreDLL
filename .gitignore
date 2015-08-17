@@ -1,0 +1,7 @@
+obj/
+Release/
+Final_Release/
+Debug/
+CvGameCoreDLL.sdf
+CvGameCoreDLL.opensdf
+depends
