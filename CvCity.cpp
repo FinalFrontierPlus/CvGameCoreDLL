@@ -263,6 +263,17 @@ void CvCity::init(int iID, PlayerTypes eOwner, int iX, int iY, bool bBumpUnits, 
 
 	changePopulation(GC.getDefineINT("INITIAL_CITY_POPULATION") + GC.getEraInfo(GC.getGameINLINE().getStartEra()).getFreePopulation());
 
+//Added in Final Frontier: TC01
+	for (int iTrait = 0; iTrait < GC.getNumTraitInfos(); iTrait++)
+	{
+		if (GET_PLAYER(getOwner()).hasTrait((TraitTypes)iTrait))
+		{
+			CvTraitInfo &kTraitInfo = GC.getTraitInfo((TraitTypes)iTrait);
+			changePopulation(kTraitInfo.getFreePopulation());
+		}
+	}
+//End of Final Frontier SDK
+
 	changeAirUnitCapacity(GC.getDefineINT("CITY_AIR_UNIT_CAPACITY"));
 
 	updateFreshWaterHealth();
@@ -446,6 +457,11 @@ void CvCity::reset(int iID, PlayerTypes eOwner, int iX, int iY, bool bConstructo
 	m_iCitySizeBoost = 0;
 	m_iSpecialistFreeExperience = 0;
 	m_iEspionageDefenseModifier = 0;
+//Added in Final Frontier: TC01
+	m_iFoodOverride = 0;
+	m_iProductionOverride = 0;
+	m_iGoldOverride = 0;
+//End of Final Frontier
 
 	m_bNeverLost = true;
 	m_bBombarded = false;
@@ -862,6 +878,9 @@ void CvCity::doTurn()
 	setPlundered(false);
 	setDrafted(false);
 	setAirliftTargeted(false);
+//Multiple Production: Added by Denev 07/10/2009
+	setBuiltFoodProducedUnit(false);
+//Multiple Production: End Add
 	setCurrAirlift(0);
 
 	AI_doTurn();
@@ -870,7 +889,21 @@ void CvCity::doTurn()
 
 	doGrowth();
 
+/*************************************************************************************************/
+/**	SPEEDTWEAK (BarbCities) Sephi                                            					**/
+/**	This function can be very slow for barbarian cities(adds 1-3sec to turn time).Reason unknown**/
+/**	Gameoptioned it -- TC01 for Final Frontier Plus                                   			**/
+/*************************************************************************************************/
+/** orig
 	doCulture();
+**/
+    if (!isBarbarian() || GC.getGame().isOption(GAMEOPTION_PRODUCTIVE_PIRATE_CITIES))
+    {
+        doCulture();
+    }
+/*************************************************************************************************/
+/**	END				                                                       						**/
+/*************************************************************************************************/
 
 	doPlotCulture(false, getOwnerINLINE(), getCommerceRate(COMMERCE_CULTURE));
 
@@ -957,6 +990,82 @@ void CvCity::doTurn()
 	{
 		setWeLoveTheKingDay(false);
 	}
+
+//Added in Final Frontier: TC01
+//	Looks at building yield changes, trait yield changes, trait yield changes with trade routes to set city base yield, and trade route yields
+//	Then, planet-specific yield stuff is done automatically in Python with changeYieldRate, in the callback right after this
+//	There are potential problems... if a city can't have negative base yield rate (Forge gets -1 in all cities). This has been (hopefully) fixed by "Python override"
+//	Would PROBABLY be easier to edit this into the functions elsewhere that do building yield changes... not sure how though
+	CvPlayer& pPlayer = GET_PLAYER(getOwner());
+	int iYield = 0;
+	setFoodOverride(0);
+	setProductionOverride(0);
+	setGoldOverride(0);
+	for (int iYieldLoop = 0; iYieldLoop < NUM_YIELD_TYPES; iYieldLoop++)
+	{
+		//Reset iYield to 0
+		iYield = 0;
+
+		//Building yields
+		for (int iBuilding = 0; iBuilding < GC.getNumBuildingInfos(); iBuilding++)
+		{
+			BuildingTypes eBuilding = (BuildingTypes)iBuilding;
+			if (getNumRealBuilding(eBuilding) > 0)
+			{
+				iYield += GC.getBuildingInfo(eBuilding).getYieldChange(iYieldLoop) * getNumRealBuilding(eBuilding);
+			}
+		}
+
+		//Trait yields, and traits with trade routes yields
+		for (int iTrait = 0; iTrait < GC.getNumTraitInfos(); iTrait++)
+		{
+			TraitTypes eTrait = (TraitTypes)iTrait;
+			if (pPlayer.hasTrait(eTrait))
+			{
+				iYield += GC.getTraitInfo(eTrait).getYieldChanges(iYieldLoop);
+				for (int iTradeCity = 0; iTradeCity < getTradeRoutes(); iTradeCity++)
+				{
+					CvCity* pTradeCity = getTradeCity(iTradeCity);
+					if (pTradeCity != NULL)
+					{
+						iYield += GC.getTraitInfo(eTrait).getTradeRouteYieldChanges(iYieldLoop);
+					}
+				}
+			}
+		}
+
+		//Trade routes (currently, only commerce is used)
+		if (iYieldLoop == 2)
+		{
+			iYield += getTradeYield((YieldTypes)2);
+		}
+
+		//Finally, store the value so Python can access it (because I'm too lazy to move all this back to Python)
+		YieldTypes eYield = (YieldTypes)iYieldLoop;
+		switch (eYield)
+		{
+			case YIELD_FOOD:
+			{
+				setFoodOverride(iYield);
+				break;
+			}
+			case YIELD_PRODUCTION:
+			{
+				setProductionOverride(iYield);
+				break;
+			}
+			case YIELD_COMMERCE:
+			{
+				setGoldOverride(iYield);
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+//End of Final Frontier
 
 	// ONEVENT - Do turn
 	CvEventReporter::getInstance().cityDoTurn(this, getOwnerINLINE());
@@ -1855,6 +1964,18 @@ bool CvCity::canConstruct(BuildingTypes eBuilding, bool bContinue, bool bTestVis
 		}
 	}
 
+//Added in Final Frontier SDK: TC01
+//	Buildings limited  to one per system cannot be built if one is already in the system
+//	Eliminates a portion of cannotConstruct callback + hardcoding in CvGameUtils.py
+	if ((GC.getBuildingInfo(eBuilding)).isOnePerSystem())
+	{
+		if (getNumRealBuilding(eBuilding) > 0)
+		{
+			return false;
+		}
+	}
+//End of Final Frontier SDK
+
 	eCorporation = (CorporationTypes)GC.getBuildingInfo(eBuilding).getPrereqCorporation();
 	if (eCorporation != NO_CORPORATION)
 	{
@@ -2060,38 +2181,61 @@ bool CvCity::canConstruct(BuildingTypes eBuilding, bool bContinue, bool bTestVis
 
 bool CvCity::canCreate(ProjectTypes eProject, bool bContinue, bool bTestVisible) const
 {
-	CyCity* pyCity = new CyCity((CvCity*)this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	argsList.add(eProject);
-	argsList.add(bContinue);
-	argsList.add(bTestVisible);
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "canCreate", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+/*************************************************************************************************/
+/**	SPEEDTWEAK (Block Python) Sephi                                               	            **/
+/**	If you want to allow modmodders to enable this Callback, add USE_CAN_CREATE_CALLBACK to		**/
+/**	Assets\xml\GlobaldefinesAlt.xml and set the value to 0. Modmodder can set value to 1 to enable it **/
+/*************************************************************************************************/
+	if(GC.getDefineINT("USE_CAN_CREATE_CALLBACK")==1)
 	{
-		return true;
+		CyCity* pyCity = new CyCity((CvCity*)this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		argsList.add(eProject);
+		argsList.add(bContinue);
+		argsList.add(bTestVisible);
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "canCreate", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return true;
+		}
 	}
+/*************************************************************************************************/
+/**	END	                                        												**/
+/*************************************************************************************************/
+
 
 	if (!(GET_PLAYER(getOwnerINLINE()).canCreate(eProject, bContinue, bTestVisible)))
 	{
 		return false;
 	}
 
-	pyCity = new CyCity((CvCity*)this);
-	CyArgsList argsList2; // XXX
-	argsList2.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	argsList2.add(eProject);
-	argsList2.add(bContinue);
-	argsList2.add(bTestVisible);
-	lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "cannotCreate", argsList2.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+/*************************************************************************************************/
+/**	SPEEDTWEAK (Block Python) Sephi                                               	            **/
+/*************************************************************************************************/
+
+	if (GC.getDefineINT("USE_CANNOT_CREATE_CALLBACK") == 1)
 	{
-		return false;
+		CyCity* pyCity = new CyCity((CvCity*)this);
+		CyArgsList argsList2; // XXX
+		argsList2.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		argsList2.add(eProject);
+		argsList2.add(bContinue);
+		argsList2.add(bTestVisible);
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "cannotCreate", argsList2.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return false;
+		}
 	}
+/*************************************************************************************************/
+/**	END	                                        												**/
+/*************************************************************************************************/
+
 
 	return true;
 }
@@ -2099,36 +2243,48 @@ bool CvCity::canCreate(ProjectTypes eProject, bool bContinue, bool bTestVisible)
 
 bool CvCity::canMaintain(ProcessTypes eProcess, bool bContinue) const
 {
-	CyCity* pyCity = new CyCity((CvCity*)this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	argsList.add(eProcess);
-	argsList.add(bContinue);
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "canMaintain", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_CAN_MAINTAIN_CALLBACK") == 1)
 	{
-		return true;
+		CyCity* pyCity = new CyCity((CvCity*)this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		argsList.add(eProcess);
+		argsList.add(bContinue);
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "canMaintain", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return true;
+		}
 	}
+	//End FF+ Speedtweak
 
 	if (!(GET_PLAYER(getOwnerINLINE()).canMaintain(eProcess, bContinue)))
 	{
 		return false;
 	}
 
-	pyCity = new CyCity((CvCity*)this);
-	CyArgsList argsList2; // XXX
-	argsList2.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	argsList2.add(eProcess);
-	argsList2.add(bContinue);
-	lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "cannotMaintain", argsList2.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_CANNOT_MAINTAIN_CALLBACK") == 1)
 	{
-		return false;
+		CyCity* pyCity = new CyCity((CvCity*)this);
+		CyArgsList argsList2; // XXX
+		argsList2.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		argsList2.add(eProcess);
+		argsList2.add(bContinue);
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "cannotMaintain", argsList2.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return false;
+		}
 	}
+	//End FF+ Speedtweak
 
 	return true;
 }
@@ -2252,6 +2408,26 @@ bool CvCity::isProductionProcess() const
 
 	return false;
 }
+
+
+//Multiple Production: Added by Denev 07/01/2009
+bool CvCity::isProductionWonder() const
+{
+	CLLNode<OrderData>* pOrderNode = headOrderQueueNode();
+
+	if (pOrderNode != NULL)
+	{
+		if (pOrderNode->m_data.eOrderType == ORDER_CONSTRUCT)
+		{
+			BuildingTypes eBuilding = (BuildingTypes)(pOrderNode->m_data.iData1);
+			BuildingClassTypes eBuildingClass = (BuildingClassTypes)(GC.getBuildingInfo(eBuilding).getBuildingClassType());
+			return (isWorldWonderClass(eBuildingClass) || isTeamWonderClass(eBuildingClass) || isNationalWonderClass(eBuildingClass));
+		}
+	}
+
+	return false;
+}
+//Multiple Production: End Add
 
 
 bool CvCity::canContinueProduction(OrderData order)
@@ -2813,6 +2989,23 @@ int CvCity::getProductionNeeded(BuildingTypes eBuilding) const
 		}
 	}
 
+//Added in Final Frontier SDK: TC01
+//	Performs operations on a building's "CostModIncrease", a value formerly hardcoded for buildings in the python
+//	The result of this is multiplied to the production needed that was already calculated
+//	Removes the getBuildingCostMod function from CvGameUtils.py and removes python hardcoding
+	if (getNumRealBuilding(eBuilding) > 0)
+	{
+		if ((GC.getBuildingInfo(eBuilding)).getCostModIncrease() > 1)
+		{
+			int iBaseProduction=0;
+			int iExtraCostMod=0;
+			iBaseProduction = GC.getBuildingInfo(eBuilding).getProductionCost();
+			iExtraCostMod = (iBaseProduction * (GC.getBuildingInfo(eBuilding)).getCostModIncrease()) - iBaseProduction;
+			iProductionNeeded *= ((iExtraCostMod * getNumRealBuilding(eBuilding)) + iBaseProduction) / iBaseProduction;
+		}
+	}
+//End of Final Frontier SDK
+
 	return iProductionNeeded;
 }
 
@@ -3094,7 +3287,18 @@ int CvCity::getProductionModifier(ProjectTypes eProject) const
 }
 
 
-int CvCity::getProductionDifference(int iProductionNeeded, int iProduction, int iProductionModifier, bool bFoodProduction, bool bOverflow) const
+//Multiple Production: Added by Denev 07/01/2009
+int CvCity::getOverflowProductionDifference() const
+{
+	return getProductionDifference(getProductionNeeded(), getProduction(), getProductionModifier(), false, true, false);
+}
+//Multiple Production: End Add
+
+
+//Multiple Production: Modified by Denev 07/03/2009
+//int CvCity::getProductionDifference(int iProductionNeeded, int iProduction, int iProductionModifier, bool bFoodProduction, bool bOverflow) const
+int CvCity::getProductionDifference(int iProductionNeeded, int iProduction, int iProductionModifier, bool bFoodProduction, bool bOverflow, bool bYield) const
+//Multiple Production: End Modify
 {
 	if (isDisorder())
 	{
@@ -3105,7 +3309,14 @@ int CvCity::getProductionDifference(int iProductionNeeded, int iProduction, int 
 
 	int iOverflow = ((bOverflow) ? (getOverflowProduction() + getFeatureProduction()) : 0);
 
-	return (((getBaseYieldRate(YIELD_PRODUCTION) + iOverflow) * getBaseYieldRateModifier(YIELD_PRODUCTION, iProductionModifier)) / 100 + iFoodProduction);
+//Multiple Production: Added by Denev 07/03/2009
+	int iYield = ((bYield) ? (getBaseYieldRate(YIELD_PRODUCTION)) : 0);
+//Multiple Production: End Add
+
+//Multiple Production: Modified by Denev 07/03/2009
+//	return (((getBaseYieldRate(YIELD_PRODUCTION) + iOverflow) * getBaseYieldRateModifier(YIELD_PRODUCTION, iProductionModifier)) / 100 + iFoodProduction);
+	return (((iYield + iOverflow) * getBaseYieldRateModifier(YIELD_PRODUCTION, iProductionModifier)) / 100 + iFoodProduction);
+//Multiple Production: End Modify
 
 }
 
@@ -3140,6 +3351,16 @@ int CvCity::getExtraProductionDifference(int iExtra, int iModifier) const
 {
 	return ((iExtra * getBaseYieldRateModifier(YIELD_PRODUCTION, iModifier)) / 100);
 }
+
+
+//Multiple Production: Added by Denev 07/01/2009
+void CvCity::clearLostProduction()
+{
+	m_iLostProductionBase = 0;
+	m_iLostProductionModified = 0;
+	m_iGoldFromLostProduction = 0;
+}
+//Multiple Production: End Add
 
 
 bool CvCity::canHurry(HurryTypes eHurry, bool bTestVisible) const
@@ -7172,6 +7393,20 @@ void CvCity::setPlundered(bool bNewValue)
 }
 
 
+//Multiple Production: Added by Denev 07/10/2009
+bool CvCity::isBuiltFoodProducedUnit() const
+{
+	return m_bBuiltFoodProducedUnit;
+}
+
+
+void CvCity::setBuiltFoodProducedUnit(bool bNewValue)
+{
+	m_bBuiltFoodProducedUnit = bNewValue;
+}
+//Multiple Production: End Add
+
+
 bool CvCity::isWeLoveTheKingDay() const
 {
 	return m_bWeLoveTheKingDay;
@@ -10425,6 +10660,17 @@ int CvCity::getTradeRoutes() const
 	}
 	iTradeRoutes += getExtraTradeRoutes();
 
+//Added in Final Frontier SDK: TC01
+	for (int iTrait = 0; iTrait < GC.getNumTraitInfos(); iTrait++)
+	{
+		if (GET_PLAYER(getOwner()).hasTrait((TraitTypes)iTrait))
+		{
+			CvTraitInfo &kTraitInfo = GC.getTraitInfo((TraitTypes)iTrait);
+			iTradeRoutes += kTraitInfo.getNumBonusTradeRoutes();
+		}
+	}
+//End of Final Frontier SDK
+
 	return std::min(iTradeRoutes, GC.getDefineINT("MAX_TRADE_ROUTES"));
 }
 
@@ -10684,7 +10930,10 @@ void CvCity::popOrder(int iNum, bool bFinish, bool bChoose)
 	bool bMessage;
 	int iCount;
 	int iProductionNeeded;
-	int iOverflow;
+
+	//Commented out by TC01: Final Frontier Plus
+	//On advice from denev in Multiple Production Mod thread
+	//int iOverflow;
 
 	bWasFoodProduction = isFoodProduction();
 
@@ -10741,21 +10990,41 @@ void CvCity::popOrder(int iNum, bool bFinish, bool bChoose)
 			iProductionNeeded = getProductionNeeded(eTrainUnit);
 
 			// max overflow is the value of the item produced (to eliminate prebuild exploits)
-			iOverflow = getUnitProduction(eTrainUnit) - iProductionNeeded;
+//Multiple Production: Modified by Denev 07/02/2009
+//			iOverflow = getUnitProduction(eTrainUnit) - iProductionNeeded;
+			int iUnlimitedOverflow = getUnitProduction(eTrainUnit) - iProductionNeeded;
+//Multiple Production: End Modify
 			int iMaxOverflow = std::max(iProductionNeeded, getCurrentProductionDifference(false, false));
-			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
-			iOverflow = std::min(iMaxOverflow, iOverflow);
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
+//			iOverflow = std::min(iMaxOverflow, iOverflow);
+			int iLostProduction = std::max(0, iUnlimitedOverflow - iMaxOverflow);
+			m_iLostProductionModified = iLostProduction;
+			m_iLostProductionBase = (100 * iLostProduction) / std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eTrainUnit)));
+			int iOverflow = std::min(iMaxOverflow, iUnlimitedOverflow);
+//Multiple Production: End Modify
 			if (iOverflow > 0)
 			{
 				changeOverflowProduction(iOverflow, getProductionModifier(eTrainUnit));
 			}
 			setUnitProduction(eTrainUnit, 0);
 
-			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_UNIT_GOLD_PERCENT") / 100;
-			if (iProductionGold > 0)
-			{
-				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
-			}
+			// Unofficial Patch Start
+			// * Limited which production modifiers affect gold from production overflow. 1/3
+			iLostProduction *= getBaseYieldRateModifier(YIELD_PRODUCTION);
+			iLostProduction /= std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eTrainUnit)));
+			// Unofficial Patch End
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_UNIT_GOLD_PERCENT") / 100;
+			int iProductionGold = ((iLostProduction * GC.getDefineINT("MAXED_UNIT_GOLD_PERCENT")) / 100);
+			m_iGoldFromLostProduction = iProductionGold;
+//Multiple Production: End Modify
+//Multiple Production: Deleted by Denev 07/01/2009
+//			if (iProductionGold > 0)
+//			{
+//				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
+//			}
+//Multiple Production: End Delete
 
 
 			pUnit = GET_PLAYER(getOwnerINLINE()).initUnit(eTrainUnit, getX_INLINE(), getY_INLINE(), eTrainAIUnit);
@@ -10809,25 +11078,47 @@ void CvCity::popOrder(int iNum, bool bFinish, bool bChoose)
 				GET_PLAYER(getOwnerINLINE()).removeBuildingClass((BuildingClassTypes)(GC.getBuildingInfo(eConstructBuilding).getBuildingClassType()));
 			}
 
-			setNumRealBuilding(eConstructBuilding, getNumRealBuilding(eConstructBuilding) + 1);
-
+//Changed in Final Frontier SDK: TC01, thanks to T-hawk
+//A fix needed to make building production overflow work
 			iProductionNeeded = getProductionNeeded(eConstructBuilding);
+			setNumRealBuilding(eConstructBuilding, getNumRealBuilding(eConstructBuilding) + 1);
+//End of Final Frontier SDK
 			// max overflow is the value of the item produced (to eliminate prebuild exploits)
-			int iOverflow = getBuildingProduction(eConstructBuilding) - iProductionNeeded;
+//Multiple Production: Modified by Denev 07/02/2009
+//			int iOverflow = getBuildingProduction(eConstructBuilding) - iProductionNeeded;
+			int iUnlimitedOverflow = getBuildingProduction(eConstructBuilding) - iProductionNeeded;
+//Multiple Production: End Modify
 			int iMaxOverflow = std::max(iProductionNeeded, getCurrentProductionDifference(false, false));
-			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
-			iOverflow = std::min(iMaxOverflow, iOverflow);
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
+//			iOverflow = std::min(iMaxOverflow, iOverflow);
+			int iLostProduction = std::max(0, iUnlimitedOverflow - iMaxOverflow);
+			m_iLostProductionModified = iLostProduction;
+			m_iLostProductionBase = (100 * iLostProduction) / std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eConstructBuilding)));
+			int iOverflow = std::min(iMaxOverflow, iUnlimitedOverflow);
+//Multiple Production: End Modify
 			if (iOverflow > 0)
 			{
 				changeOverflowProduction(iOverflow, getProductionModifier(eConstructBuilding));
 			}
 			setBuildingProduction(eConstructBuilding, 0);
 
-			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_BUILDING_GOLD_PERCENT") / 100;
-			if (iProductionGold > 0)
-			{
-				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
-			}
+			// Unofficial Patch Start
+			// * Limited which production modifiers affect gold from production overflow. 2/3
+			iLostProduction *= getBaseYieldRateModifier(YIELD_PRODUCTION);
+			iLostProduction /= std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eConstructBuilding)));
+			// Unofficial Patch End
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_BUILDING_GOLD_PERCENT") / 100;
+			int iProductionGold = ((iLostProduction * GC.getDefineINT("MAXED_BUILDING_GOLD_PERCENT")) / 100);
+			m_iGoldFromLostProduction = iProductionGold;
+//Multiple Production: End Modify
+//Multiple Production: Deleted by Denev 07/01/2009
+//			if (iProductionGold > 0)
+//			{
+//				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
+//			}
+//Multiple Production: End Delete
 
 			CvEventReporter::getInstance().buildingBuilt(this, eConstructBuilding);
 		}
@@ -10899,21 +11190,41 @@ void CvCity::popOrder(int iNum, bool bFinish, bool bChoose)
 
 			iProductionNeeded = getProductionNeeded(eCreateProject);
 			// max overflow is the value of the item produced (to eliminate pre-build exploits)
-			iOverflow = getProjectProduction(eCreateProject) - iProductionNeeded;
+//Multiple Production: Modified by Denev 07/02/2009
+//			iOverflow = getProjectProduction(eCreateProject) - iProductionNeeded;
+			int iUnlimitedOverflow = getProjectProduction(eCreateProject) - iProductionNeeded;
+//Multiple Production: End Modify
 			int iMaxOverflow = std::max(iProductionNeeded, getCurrentProductionDifference(false, false));
-			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
-			iOverflow = std::min(iMaxOverflow, iOverflow);
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iMaxOverflowForGold = std::max(iProductionNeeded, getProductionDifference(getProductionNeeded(), getProduction(), 0, isFoodProduction(), false));
+//			iOverflow = std::min(iMaxOverflow, iOverflow);
+			int iLostProduction = std::max(0, iUnlimitedOverflow - iMaxOverflow);
+			m_iLostProductionModified = iLostProduction;
+			m_iLostProductionBase = (100 * iLostProduction) / std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eCreateProject)));
+			int iOverflow = std::min(iMaxOverflow, iUnlimitedOverflow);
+//Multiple Production: End Modify
 			if (iOverflow > 0)
 			{
 				changeOverflowProduction(iOverflow, getProductionModifier(eCreateProject));
 			}
 			setProjectProduction(eCreateProject, 0);
 
-			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_PROJECT_GOLD_PERCENT") / 100;
-			if (iProductionGold > 0)
-			{
-				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
-			}
+			// Unofficial Patch Start
+			// * Limited which production modifiers affect gold from production overflow. 3/3
+			iLostProduction *= getBaseYieldRateModifier(YIELD_PRODUCTION);
+			iLostProduction /= std::max(1, getBaseYieldRateModifier(YIELD_PRODUCTION, getProductionModifier(eCreateProject)));
+			// Unofficial Patch End
+//Multiple Production: Modified by Denev 07/02/2009 (from 3.17 SDK)
+//			int iProductionGold = std::max(0, iOverflow - iMaxOverflowForGold) * GC.getDefineINT("MAXED_PROJECT_GOLD_PERCENT") / 100;
+			int iProductionGold = ((iLostProduction * GC.getDefineINT("MAXED_PROJECT_GOLD_PERCENT")) / 100);
+			m_iGoldFromLostProduction = iProductionGold;
+//Multiple Production: End Modify
+//Multiple Production: Deleted by Denev 07/01/2009
+//			if (iProductionGold > 0)
+//			{
+//				GET_PLAYER(getOwnerINLINE()).changeGold(iProductionGold);
+//			}
+//Multiple Production: End Delete
 		}
 		break;
 
@@ -11128,16 +11439,21 @@ void CvCity::doGrowth()
 {
 	int iDiff;
 
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doGrowth", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_GROWTH_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doGrowth", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
+	//End of FF+ speed tweak
 
 	iDiff = foodDifference();
 
@@ -11148,7 +11464,10 @@ void CvCity::doGrowth()
 
 	if (getFood() >= growthThreshold())
 	{
-		if (AI_isEmphasizeAvoidGrowth())
+		//Change made in Final Frontier Plus: TC01 (courtesy of God-Emperor)
+		//Fix AI issues with avoid growth- namely, that it doesn't turn on.
+		//if (AI_isEmphasizeAvoidGrowth())
+		if ((isHuman() && AI_isEmphasizeAvoidGrowth()) || (!isHuman() && AI_avoidGrowth()))
 		{
 			setFood(growthThreshold());
 		}
@@ -11175,16 +11494,23 @@ void CvCity::doGrowth()
 
 void CvCity::doCulture()
 {
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doCulture", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_CULTURE_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doCulture", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
+	//End of FF+ speedtweak
 
 	changeCultureTimes100(getOwnerINLINE(), getCommerceRateTimes100(COMMERCE_CULTURE), false, true);
 }
@@ -11197,19 +11523,25 @@ void CvCity::doPlotCulture(bool bUpdate, PlayerTypes ePlayer, int iCultureRate)
 	int iCultureRange;
 	CultureLevelTypes eCultureLevel = (CultureLevelTypes)0;
 
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	argsList.add(bUpdate);
-	argsList.add(ePlayer);
-	argsList.add(iCultureRate);
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doPlotCulture", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_PLOT_CULTURE_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		argsList.add(bUpdate);
+		argsList.add(ePlayer);
+		argsList.add(iCultureRate);
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doPlotCulture", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
+	//End of FF+ speedtweak
 
 	FAssert(NO_PLAYER != ePlayer);
 
@@ -11399,16 +11731,22 @@ bool CvCity::doCheckProduction()
 
 void CvCity::doProduction(bool bAllowNoProduction)
 {
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doProduction", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_PRODUCTION_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doProduction", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
+	//End of FF+ speedtweak
 
 	if (!isHuman() || isProductionAutomated())
 	{
@@ -11438,11 +11776,70 @@ void CvCity::doProduction(bool bAllowNoProduction)
 		changeProduction(getCurrentProductionDifference(false, true));
 		setOverflowProduction(0);
 		setFeatureProduction(0);
+//Multiple Production: Added by Denev 07/10/2009
+		setBuiltFoodProducedUnit(isFoodProduction());
+		clearLostProduction();
+//Multiple Production: End Add
 
-		if (getProduction() >= getProductionNeeded())
+//Multiple Production: Modified by Denev 07/02/2009
+//		if (getProduction() >= getProductionNeeded())
+//		{
+//			popOrder(0, true, true);
+//		}
+		if (!GC.getGameINLINE().isOption(GAMEOPTION_MULTIPLE_PRODUCTION))
 		{
-			popOrder(0, true, true);
+			if (getProduction() >= getProductionNeeded())
+			{
+				popOrder(0, true, true);
+			}
 		}
+		else
+		{
+			int iOverflowProductionModified = 0;
+			while (isProduction() && productionLeft() <= iOverflowProductionModified)
+			{
+				changeProduction(iOverflowProductionModified);
+				setOverflowProduction(0);
+
+				popOrder(0, true, true);
+
+				//to eliminate pre-build exploits for all Wonders and all Projects
+				if (isProductionWonder() || isProductionProject())
+				{
+					break;
+				}
+
+				//to eliminate pre-build exploits for Settlers and Workers
+				if (isFoodProduction() && !isBuiltFoodProducedUnit())
+				{
+					break;
+				}
+
+				if (isProductionProcess())
+				{
+					break;
+				}
+
+				//fix production which floods from overflow capacity to next queue item if it exists
+				if (isProduction() && m_iLostProductionBase > 0)
+				{
+					changeProduction(getExtraProductionDifference(m_iLostProductionBase));
+					clearLostProduction();
+				}
+
+				iOverflowProductionModified = getOverflowProductionDifference();
+			}
+		}
+
+		if (m_iGoldFromLostProduction > 0)
+		{
+			CvWString szBuffer = gDLL->getText("TXT_KEY_MISC_LOST_PROD_CONVERTED", getNameKey(), m_iLostProductionModified, m_iGoldFromLostProduction);
+			gDLL->getInterfaceIFace()->addMessage(getOwnerINLINE(), false, GC.getEVENT_MESSAGE_TIME(), szBuffer, "AS2D_WONDERGOLD", MESSAGE_TYPE_MINOR_EVENT, GC.getCommerceInfo(COMMERCE_GOLD).getButton(), (ColorTypes)GC.getInfoTypeForString("COLOR_RED"), getX_INLINE(), getY_INLINE(), true, true);
+
+			GET_PLAYER(getOwnerINLINE()).changeGold(m_iGoldFromLostProduction);
+			clearLostProduction();
+		}
+//Multiple Production: End Modify
 	}
 	else
 	{
@@ -11516,16 +11913,21 @@ void CvCity::doReligion()
 	int iSpread;
 	int iLoop;
 	int iI, iJ;
-
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doReligion", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_RELIGION_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doReligion", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
 
 	if (getReligionCount() == 0)
@@ -11577,15 +11979,20 @@ void CvCity::doReligion()
 
 void CvCity::doGreatPeople()
 {
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doGreatPeople", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_GREAT_PEOPLE_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doGreatPeople", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
 
 	if (isDisorder())
@@ -11644,16 +12051,22 @@ void CvCity::doMeltdown()
 	CvWString szBuffer;
 	int iI;
 
-	CyCity* pyCity = new CyCity(this);
-	CyArgsList argsList;
-	argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
-	long lResult=0;
-	gDLL->getPythonIFace()->callFunction(PYGameModule, "doMeltdown", argsList.makeFunctionArgs(), &lResult);
-	delete pyCity;	// python fxn must not hold on to this pointer 
-	if (lResult == 1)
+	//Speedtweak by TC01 for Final Frontier Plus
+	//Rather than disable this callback, make it a switch
+	if (GC.getDefineINT("USE_DO_MELTDOWN_CALLBACK") == 1)
 	{
-		return;
+		CyCity* pyCity = new CyCity(this);
+		CyArgsList argsList;
+		argsList.add(gDLL->getPythonIFace()->makePythonObject(pyCity));	// pass in city class
+		long lResult=0;
+		gDLL->getPythonIFace()->callFunction(PYGameModule, "doMeltdown", argsList.makeFunctionArgs(), &lResult);
+		delete pyCity;	// python fxn must not hold on to this pointer 
+		if (lResult == 1)
+		{
+			return;
+		}
 	}
+	//End of FF+ speedtweak
 
 	for (iI = 0; iI < GC.getNumBuildingInfos(); iI++)
 	{
@@ -11922,6 +12335,11 @@ void CvCity::read(FDataStreamBase* pStream)
 		pStream->Read(&iChange);
 		m_aBuildingHealthChange.push_back(std::make_pair((BuildingClassTypes)iBuildingClass, iChange));
 	}
+	
+	// FFP for 1.82 - load the yield override values from the save
+	pStream->Read(&m_iFoodOverride);
+	pStream->Read(&m_iProductionOverride);
+	pStream->Read(&m_iGoldOverride);
 }
 
 void CvCity::write(FDataStreamBase* pStream)
@@ -12143,6 +12561,13 @@ void CvCity::write(FDataStreamBase* pStream)
 		pStream->Write((*it).first);
 		pStream->Write((*it).second);
 	}
+
+	// FFP for 1.82 - store the yield override values in the save so they are not all 0 on the
+	//	first turn after loading a save, which causes lost yield if you move population between
+	//	planets that first turn after loading (which is every turn in a PBEM game).
+	pStream->Write(m_iFoodOverride);
+	pStream->Write(m_iProductionOverride);
+	pStream->Write(m_iGoldOverride);
 }
 
 
@@ -13609,3 +14034,36 @@ void CvCity::getBuildQueue(std::vector<std::string>& astrQueue) const
 	}
 }
 
+//Added in Final Frontier: TC01
+//	Accesors for the yield Python overrides (when we would otherwise have to have the base yields be negative)
+//	This can work, because the Python adds the base value generated by FF+'s DLL to the raw planet numbers
+int CvCity::getFoodOverride() const
+{
+	return m_iFoodOverride;
+}
+
+int CvCity::getProductionOverride() const
+{
+	return m_iProductionOverride;
+}
+
+int CvCity::getGoldOverride() const
+{
+	return m_iGoldOverride;
+}
+
+void CvCity::setFoodOverride(int iNewValue)
+{
+	m_iFoodOverride = iNewValue;
+}
+
+void CvCity::setProductionOverride(int iNewValue)
+{
+	m_iProductionOverride = iNewValue;
+}
+
+void CvCity::setGoldOverride(int iNewValue)
+{
+	m_iGoldOverride = iNewValue;
+}
+//End of Final Frontier

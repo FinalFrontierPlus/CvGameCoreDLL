@@ -1189,6 +1189,37 @@ protected:
 
 	FProfiler* m_Profiler;		// profiler
 	CvString m_szDllProfileText;
+
+	// UncutDragon
+	// Lead from Behind flags
+public:
+	bool getLFBEnable();
+	int getLFBBasedOnGeneral();
+	int getLFBBasedOnExperience();
+	int getLFBBasedOnLimited();
+	int getLFBBasedOnHealer();
+	int getLFBBasedOnAverage();
+	bool getLFBUseSlidingScale();
+	int getLFBAdjustNumerator();
+	int getLFBAdjustDenominator();
+	bool getLFBUseCombatOdds();
+	int getCOMBAT_DIE_SIDES();
+	int getCOMBAT_DAMAGE();
+
+protected:
+	bool m_bLFBEnable;
+	int m_iLFBBasedOnGeneral;
+	int m_iLFBBasedOnExperience;
+	int m_iLFBBasedOnLimited;
+	int m_iLFBBasedOnHealer;
+	int m_iLFBBasedOnAverage;
+	bool m_bLFBUseSlidingScale;
+	int	m_iLFBAdjustNumerator;
+	int	m_iLFBAdjustDenominator;
+	bool m_bLFBUseCombatOdds;
+	int m_iCOMBAT_DIE_SIDES;
+	int m_iCOMBAT_DAMAGE;
+	// /UncutDragon
 };
 
 extern CvGlobals gGlobals;	// for debugging

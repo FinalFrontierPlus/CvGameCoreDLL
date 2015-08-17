@@ -50,7 +50,7 @@ CvPlot::CvPlot()
 	m_paiBuildProgress = NULL;
 	m_apaiCultureRangeCities = NULL;
 	m_apaiInvisibleVisibilityCount = NULL;
-	
+
 	m_pFeatureSymbol = NULL;
 	m_pPlotBuilder = NULL;
 	m_pRouteSymbol = NULL;
@@ -60,6 +60,10 @@ CvPlot::CvPlot()
 	m_pCenterUnit = NULL;
 
 	m_szScriptData = NULL;
+
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+	m_apaiPlayerDangerCache = NULL;
+	// Sanguo Mod Performance, end
 
 	reset(0, 0, true);
 }
@@ -139,6 +143,17 @@ void CvPlot::uninit()
 		SAFE_DELETE_ARRAY(m_apaiInvisibleVisibilityCount);
 	}
 
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+	if (NULL != m_apaiPlayerDangerCache)
+	{
+		for (int iI = 0; iI < MAX_PLAYERS; ++iI)
+		{
+			SAFE_DELETE_ARRAY(m_apaiPlayerDangerCache[iI]);
+		}
+		SAFE_DELETE_ARRAY(m_apaiPlayerDangerCache);
+	}
+	// Sanguo Mod Performance, end
+
 	m_units.clear();
 }
 
@@ -177,7 +192,7 @@ void CvPlot::reset(int iX, int iY, bool bConstructorCall)
 	m_bFlagDirty = false;
 	m_bPlotLayoutDirty = false;
 	m_bLayoutStateWorked = false;
-	
+
 	m_eOwner = NO_PLAYER;
 	m_ePlotType = PLOT_OCEAN;
 	m_eTerrainType = NO_TERRAIN;
@@ -639,7 +654,7 @@ void CvPlot::updateSymbols()
 	{
 		int maxYieldStack = GC.getDefineINT("MAX_YIELD_STACK");
 		int layers = maxYield /maxYieldStack + 1;
-		
+
 		CvSymbol *pSymbol= NULL;
 		for(int i=0;i<layers;i++)
 		{
@@ -725,7 +740,7 @@ void CvPlot::updateCenterUnit()
 void CvPlot::verifyUnitValidPlot()
 {
 	PROFILE_FUNC();
-	
+
 	std::vector<CvUnit*> aUnits;
 	CLLNode<IDInfo>* pUnitNode = headUnitNode();
 	while (pUnitNode != NULL)
@@ -1670,7 +1685,7 @@ void CvPlot::changeAdjacentSight(TeamTypes eTeam, int iRange, bool bIncrement, C
 						}
 					}
 				}
-				
+
 				if (eFacingDirection != NO_DIRECTION)
 				{
 					if((abs(dx) <= 1) && (abs(dy) <= 1)) //always reveal adjacent plots when using line of sight
@@ -1795,7 +1810,7 @@ bool CvPlot::canSeeDisplacementPlot(TeamTypes eTeam, int dx, int dy, int origina
 			}
 		}
 	}
-	
+
 	return false;
 }
 
@@ -1816,7 +1831,7 @@ bool CvPlot::shouldProcessDisplacementPlot(int dx, int dy, int range, DirectionT
 
 		int directionX = displacements[eFacingDirection][0];
 		int directionY = displacements[eFacingDirection][1];
-		
+
 		//compute angle off of direction
 		int crossProduct = directionX * dy - directionY * dx; //cross product
 		int dotProduct = directionX * dx + directionY * dy; //dot product
@@ -1836,7 +1851,7 @@ bool CvPlot::shouldProcessDisplacementPlot(int dx, int dy, int range, DirectionT
 		{
 			return false;
 		}
-        
+
 		/*
 		DirectionTypes leftDirection = GC.getTurnLeftDirection(eFacingDirection);
 		DirectionTypes rightDirection = GC.getTurnRightDirection(eFacingDirection);
@@ -1915,8 +1930,8 @@ void CvPlot::updateSight(bool bIncrement, bool bUpdatePlotGroups)
 	{
 		pLoopUnit = ::getUnit(pUnitNode->m_data);
 		pUnitNode = nextUnitNode(pUnitNode);
-		
-		
+
+
 		changeAdjacentSight(pLoopUnit->getTeam(), pLoopUnit->visibilityRange(), bIncrement, pLoopUnit, bUpdatePlotGroups);
 	}
 
@@ -1949,7 +1964,7 @@ void CvPlot::updateSeeFromSight(bool bIncrement, bool bUpdatePlotGroups)
 	}
 
 	iRange = std::max(GC.getDefineINT("RECON_VISIBILITY_RANGE") + 1, iRange);
-	
+
 	for (iDX = -iRange; iDX <= iRange; iDX++)
 	{
 		for (iDY = -iRange; iDY <= iRange; iDY++)
@@ -2219,6 +2234,35 @@ bool CvPlot::canBuild(BuildTypes eBuild, PlayerTypes ePlayer, bool bTestVisible)
 		return false;
 	}
 
+//Added in Final Frontier SDK: TC01
+//	If we're building a starbase, check if other starbases or other constructors building a starbase are on the plot
+//	Allows the canBuild callback in CvGameUtils.py to be disabled
+	CvUnit * pPlotUnit;
+	int iNumStarbases = 0;
+	if (GC.getBuildInfo(eBuild).isStarbase())
+	{
+		for (int iUnit = 0; iUnit < getNumUnits(); iUnit++)
+		{
+			pPlotUnit = getUnitByIndex(iUnit);
+			if (pPlotUnit->isStarbase())
+			{
+				return false;
+			}
+			if (pPlotUnit->getBuildType() != NO_BUILD)
+			{
+				if (GC.getBuildInfo(pPlotUnit->getBuildType()).isStarbase())
+				{
+					iNumStarbases += 1;
+				}
+			}
+		}
+		if (iNumStarbases > 1)
+		{
+			return false;
+		}
+	}
+//End of Final Frontier SDK
+
 	bValid = false;
 
 	eImprovement = ((ImprovementTypes)(GC.getBuildInfo(eBuild).getImprovement()));
@@ -2466,6 +2510,9 @@ CvUnit* CvPlot::getBestDefender(PlayerTypes eOwner, PlayerTypes eAttackingPlayer
 	CLLNode<IDInfo>* pUnitNode;
 	CvUnit* pLoopUnit;
 	CvUnit* pBestUnit;
+	// UncutDragon
+	int iBestUnitRank = -1;
+	// /UncutDragon
 
 	pBestUnit = NULL;
 
@@ -2488,7 +2535,12 @@ CvUnit* CvPlot::getBestDefender(PlayerTypes eOwner, PlayerTypes eAttackingPlayer
 						{
 							if ((pAttacker == NULL) || (pAttacker->getDomainType() != DOMAIN_AIR) || (pLoopUnit->getDamage() < pAttacker->airCombatLimit()))
 							{
-								if (pLoopUnit->isBetterDefenderThan(pBestUnit, pAttacker))
+								// UncutDragon
+								// original
+								//if (pLoopUnit->isBetterDefenderThan(pBestUnit, pAttacker))
+								// modified (added extra parameter)
+								if (pLoopUnit->isBetterDefenderThan(pBestUnit, pAttacker, &iBestUnitRank))
+								// /UncutDragon
 								{
 									pBestUnit = pLoopUnit;
 								}
@@ -2530,7 +2582,7 @@ int CvPlot::AI_sumStrength(PlayerTypes eOwner, PlayerTypes eAttackingPlayer, Dom
 						if (eDomainType == NO_DOMAIN || (pLoopUnit->getDomainType() == eDomainType))
 						{
 							const CvPlot* pPlot = NULL;
-							
+
 							if (bDefensiveBonuses)
 								pPlot = this;
 
@@ -2674,7 +2726,7 @@ int CvPlot::movementCost(const CvUnit* pUnit, const CvPlot* pFromPlot) const
 
 	if (pUnit->ignoreTerrainCost())
 	{
-		iRegularCost = 1; 
+		iRegularCost = 1;
 	}
 	else
 	{
@@ -2724,7 +2776,20 @@ int CvPlot::movementCost(const CvUnit* pUnit, const CvPlot* pFromPlot) const
 
 int CvPlot::getExtraMovePathCost() const
 {
+//Added in Final Frontier SDK: TC01
+//	Allow XML tag iMovePathExtraCost to influence this
+//	This may mess up other stuff, as I'm not entirely sure how the game stores this data
+/*Old code:
 	return GC.getGameINLINE().getPlotExtraCost(getX_INLINE(), getY_INLINE());
+New Code:*/
+	int iExtraCost = GC.getGameINLINE().getPlotExtraCost(getX_INLINE(), getY_INLINE());
+	FeatureTypes eFeature = getFeatureType();
+	if (eFeature != NO_FEATURE)
+	{
+		iExtraCost += GC.getFeatureInfo(eFeature).getExtraMovePathCost();
+	}
+	return iExtraCost;
+//End of Final Frontier SDK
 }
 
 
@@ -3095,7 +3160,7 @@ bool CvPlot::isVisible(TeamTypes eTeam, bool bDebug) const
 
 bool CvPlot::isActiveVisible(bool bDebug) const
 {
-	return isVisible(GC.getGameINLINE().getActiveTeam(), bDebug); 
+	return isVisible(GC.getGameINLINE().getActiveTeam(), bDebug);
 }
 
 
@@ -3809,14 +3874,14 @@ CvArea* CvPlot::waterArea() const
 
 CvArea* CvPlot::secondWaterArea() const
 {
-	
+
 	CvArea* pWaterArea = waterArea();
 	CvArea* pBestArea;
 	CvPlot* pAdjacentPlot;
 	int iValue;
 	int iBestValue;
 	int iI;
-	
+
 	FAssert(!isWater());
 
 	iBestValue = 0;
@@ -3841,8 +3906,8 @@ CvArea* CvPlot::secondWaterArea() const
 		}
 	}
 
-	return pBestArea;	
-	
+	return pBestArea;
+
 }
 
 
@@ -4049,7 +4114,7 @@ bool CvPlot::isStartingPlot() const
 }
 
 
-void CvPlot::setStartingPlot(bool bNewValue)														 
+void CvPlot::setStartingPlot(bool bNewValue)
 {
 	m_bStartingPlot = bNewValue;
 }
@@ -4473,6 +4538,32 @@ void CvPlot::setOwner(PlayerTypes eNewValue, bool bCheckUnits, bool bUpdatePlotG
 
 		pOldCity = getPlotCity();
 
+		// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+		if (GC.getGameINLINE().isFinalInitialized() && getTeam() != NO_TEAM)
+		{
+            for (iI = 0; iI < MAX_TEAMS; iI++)
+            {
+                if (GET_TEAM(getTeam()).isAtWar((TeamTypes)iI))
+                {
+                    for (int iDX = -DANGER_RANGE; iDX <= DANGER_RANGE; iDX++)
+                    {
+                        for (int iDY = -DANGER_RANGE; iDY <= DANGER_RANGE; iDY++)
+                        {
+                            int iIndex = GC.getMapINLINE().plotNumINLINE(getX_INLINE() + iDX, getY_INLINE() + iDY);
+                            if (iIndex > -1 && iIndex < GC.getMapINLINE().numPlotsINLINE())
+                            {
+                                for (int iJ = 0; iJ < GET_TEAM((TeamTypes)iI).getPlayerMemberListSize(); iJ++)
+                                {
+                                    GET_PLAYER(GET_TEAM((TeamTypes)iI).getPlayerMemberAt(iJ)).AI_invalidatePlotDangerCache(iIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+		}
+		// Sanguo Mod Performance, end
+
 		if (pOldCity != NULL)
 		{
 			szBuffer = gDLL->getText("TXT_KEY_MISC_CITY_REVOLTED_JOINED", pOldCity->getNameKey(), GET_PLAYER(eNewValue).getCivilizationDescriptionKey());
@@ -4684,6 +4775,32 @@ void CvPlot::setOwner(PlayerTypes eNewValue, bool bCheckUnits, bool bUpdatePlotG
 				gDLL->getEngineIFace()->SetDirty(CultureBorders_DIRTY_BIT, true);
 			}
 		}
+
+		// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+		if (GC.getGameINLINE().isFinalInitialized() && getTeam() != NO_TEAM)
+		{
+            for (iI = 0; iI < MAX_TEAMS; iI++)
+            {
+                if (GET_TEAM(getTeam()).isAtWar((TeamTypes)iI))
+                {
+                    for (int iDX = -DANGER_RANGE; iDX <= DANGER_RANGE; iDX++)
+                    {
+                        for (int iDY = -DANGER_RANGE; iDY <= DANGER_RANGE; iDY++)
+                        {
+                            int iIndex = GC.getMapINLINE().plotNumINLINE(getX_INLINE() + iDX, getY_INLINE() + iDY);
+                            if (iIndex > -1 && iIndex < GC.getMapINLINE().numPlotsINLINE())
+                            {
+                                for (int iJ = 0; iJ < GET_TEAM((TeamTypes)iI).getPlayerMemberListSize(); iJ++)
+                                {
+                                    GET_PLAYER(GET_TEAM((TeamTypes)iI).getPlayerMemberAt(iJ)).AI_invalidatePlotDangerCache(iIndex);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+		}
+		// Sanguo Mod Performance, end
 
 		updateSymbols();
 	}
@@ -4950,7 +5067,7 @@ void CvPlot::setPlotType(PlotTypes eNewValue, bool bRecalculate, bool bRebuildGr
 
 		if (bRebuildGraphics && GC.IsGraphicsInitialized())
 		{
-			//Update terrain graphical 
+			//Update terrain graphical
 			gDLL->getEngineIFace()->RebuildPlot(getX_INLINE(), getY_INLINE(), true, true);
 			//gDLL->getEngineIFace()->SetDirty(MinimapTexture_DIRTY_BIT, true); //minimap does a partial update
 			//gDLL->getEngineIFace()->SetDirty(GlobeTexture_DIRTY_BIT, true);
@@ -5079,7 +5196,7 @@ void CvPlot::setFeatureType(FeatureTypes eNewValue, int iVariety)
 
 		updateFeatureSymbol();
 
-		if (((eOldFeature != NO_FEATURE) && (GC.getFeatureInfo(eOldFeature).getArtInfo()->isRiverArt())) || 
+		if (((eOldFeature != NO_FEATURE) && (GC.getFeatureInfo(eOldFeature).getArtInfo()->isRiverArt())) ||
 			  ((getFeatureType() != NO_FEATURE) && (GC.getFeatureInfo(getFeatureType()).getArtInfo()->isRiverArt())))
 		{
 			updateRiverSymbolArt(true);
@@ -5234,7 +5351,7 @@ void CvPlot::setBonusType(BonusTypes eNewValue)
 		updateYield();
 
 		setLayoutDirty(true);
-		
+
 		gDLL->getInterfaceIFace()->setDirty(GlobeLayer_DIRTY_BIT, true);
 	}
 }
@@ -5347,7 +5464,7 @@ void CvPlot::setImprovementType(ImprovementTypes eNewValue)
 		CvCity* pWorkingCity = getWorkingCity();
 		if (NULL != pWorkingCity)
 		{
-			if ((NO_IMPROVEMENT != eNewValue && pWorkingCity->getImprovementFreeSpecialists(eNewValue) > 0)	|| 
+			if ((NO_IMPROVEMENT != eNewValue && pWorkingCity->getImprovementFreeSpecialists(eNewValue) > 0)	||
 				(NO_IMPROVEMENT != eOldImprovement && pWorkingCity->getImprovementFreeSpecialists(eOldImprovement) > 0))
 			{
 
@@ -5405,6 +5522,37 @@ void CvPlot::setRouteType(RouteTypes eNewValue, bool bUpdatePlotGroups)
 		{
 			updateRouteSymbol(true, true);
 		}
+
+		// Sanguo Mod Performance, start, added by poyuzhe 08.12.09
+		{PROFILE_BEGIN("setRouteType::plotdangercache");
+		if (GC.getGameINLINE().isFinalInitialized())
+		{
+			for (int iDX = -DANGER_RANGE; iDX <= DANGER_RANGE; iDX++)
+			{
+				for (int iDY = -DANGER_RANGE; iDY <= DANGER_RANGE; iDY++)
+				{
+					int iIndex = GC.getMapINLINE().plotNumINLINE(getX_INLINE() + iDX, getY_INLINE() + iDY);
+					if (iIndex > -1 && iIndex < GC.getMapINLINE().numPlotsINLINE())
+					{
+						CvPlot* pLoopPlot = GC.getMapINLINE().plotByIndex(iIndex);
+						FAssert (pLoopPlot != NULL);
+
+						int iDistance = stepDistance(getX_INLINE(), getY_INLINE(), getX_INLINE() + iDX, getY_INLINE() + iDY);
+
+						FAssert (iDistance <= DANGER_RANGE);
+						for (iI = 0; iI < MAX_PLAYERS; iI++)
+						{
+							for (int iJ = 0; iJ < iDistance; iJ++)
+							{
+								pLoopPlot->invalidatePlayerDangerCache((PlayerTypes)iI, iJ);
+							}
+						}
+					}
+				}
+			}
+		}
+		PROFILE_END();}
+		// Sanguo Mod Performance, end
 
 		if (getRouteType() != NO_ROUTE)
 		{
@@ -6269,7 +6417,7 @@ bool CvPlot::isBestAdjacentFound(PlayerTypes eIndex)
 	{
 		return false;
 	}
-	
+
 	for (iI = 0; iI < NUM_DIRECTION_TYPES; ++iI)
 	{
 		pAdjacentPlot = plotDirection(getX_INLINE(), getY_INLINE(), ((DirectionTypes)iI));
@@ -7585,7 +7733,7 @@ void CvPlot::updateRiverSymbol(bool bForce, bool bAdjacent)
 		m_pRiverSymbol = gDLL->getRiverIFace()->createRiver();
 		FAssertMsg(m_pRiverSymbol != NULL, "m_pRiverSymbol is not expected to be equal with NULL");
 		gDLL->getRiverIFace()->init(m_pRiverSymbol, 0, 0, 0, this);
-		
+
 		//force tree cuts for adjacent plots
 		DirectionTypes affectedDirections[] = {NO_DIRECTION, DIRECTION_EAST, DIRECTION_SOUTHEAST, DIRECTION_SOUTH};
 		for(int i=0;i<4;i++)
@@ -7613,7 +7761,7 @@ void CvPlot::updateRiverSymbol(bool bForce, bool bAdjacent)
 		// update the symbol
 		setLayoutDirty(true);
 	}
-	
+
 	//recontour rivers
 	gDLL->getEntityIFace()->updatePosition((CvEntity *)m_pRiverSymbol); //update position and contours
 }
@@ -8063,7 +8211,7 @@ CvSymbol* CvPlot::addSymbol()
 }
 
 
-void CvPlot::deleteSymbol(int iID)			
+void CvPlot::deleteSymbol(int iID)
 {
 	m_symbols.erase(m_symbols.begin()+iID);
 }
@@ -8457,7 +8605,7 @@ void CvPlot::read(FDataStreamBase* pStream)
 	pStream->Read(&m_iMinOriginalStartDist);
 	pStream->Read(&m_iReconCount);
 	pStream->Read(&m_iRiverCrossingCount);
-	
+
 	pStream->Read(&bVal);
 	m_bStartingPlot = bVal;
 	pStream->Read(&bVal);
@@ -8653,6 +8801,35 @@ void CvPlot::read(FDataStreamBase* pStream)
 			}
 		}
 	}
+
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+//	if (NULL != m_apaiPlayerDangerCache)
+//	{
+//		for (int iI = 0; iI < MAX_PLAYERS; ++iI)
+//		{
+//			SAFE_DELETE_ARRAY(m_apaiPlayerDangerCache[iI]);
+//		}
+//		SAFE_DELETE_ARRAY(m_apaiPlayerDangerCache);
+//	}
+//	pStream->Read(&cCount);
+//	if (cCount > 0)
+//	{
+//		m_apaiPlayerDangerCache = new short*[cCount];
+//		for (iI = 0; iI < cCount; ++iI)
+//		{
+//			pStream->Read(&iCount);
+//			if (iCount > 0)
+//			{
+//				m_apaiPlayerDangerCache[iI] = new short[iCount];
+//				pStream->Read(iCount, m_apaiPlayerDangerCache[iI]);
+//			}
+//			else
+//			{
+//				m_apaiPlayerDangerCache[iI] = NULL;
+//			}
+//		}
+//	}
+	// Sanguo Mod Performance, end
 
 	m_units.Read(pStream);
 }
@@ -8887,6 +9064,29 @@ void CvPlot::write(FDataStreamBase* pStream)
 		}
 	}
 
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+//	if (NULL == m_apaiPlayerDangerCache)
+//	{
+//		pStream->Write((char)0);
+//	}
+//	else
+//	{
+//		pStream->Write((char)MAX_PLAYERS);
+//		for (iI=0; iI < MAX_PLAYERS; ++iI)
+//		{
+//			if (NULL == m_apaiPlayerDangerCache[iI])
+//			{
+//				pStream->Write((int)0);
+//			}
+//			else
+//			{
+//				pStream->Write(DANGER_RANGE);
+//				pStream->Write(DANGER_RANGE, m_apaiPlayerDangerCache[iI]);
+//			}
+//		}
+//	}
+	// Sanguo Mod Performance, end
+
 	m_units.Write(pStream);
 }
 
@@ -8929,7 +9129,7 @@ bool CvPlot::updatePlotBuilder()
 
 bool CvPlot::isLayoutDirty() const
 {
-	return m_bPlotLayoutDirty;	
+	return m_bPlotLayoutDirty;
 }
 
 bool CvPlot::isLayoutStateDifferent() const
@@ -9105,11 +9305,11 @@ int CvPlot::getYieldWithBuild(BuildTypes eBuild, YieldTypes eYield, bool bWithUp
 			bIgnoreFeature = true;
 		}
 	}
-		
+
 	iYield += calculateNatureYield(eYield, getTeam(), bIgnoreFeature);
-	
+
 	ImprovementTypes eImprovement = (ImprovementTypes)GC.getBuildInfo(eBuild).getImprovement();
-	
+
 	if (eImprovement != NO_IMPROVEMENT)
 	{
 		if (bWithUpgrade)
@@ -9125,20 +9325,20 @@ int CvPlot::getYieldWithBuild(BuildTypes eBuild, YieldTypes eYield, bool bWithUp
 					ImprovementTypes eUpgradeImprovement2 = (ImprovementTypes)GC.getImprovementInfo(eUpgradeImprovement).getImprovementUpgrade();
 					if (eUpgradeImprovement2 != NO_IMPROVEMENT)
 					{
-						eUpgradeImprovement = eUpgradeImprovement2;				
+						eUpgradeImprovement = eUpgradeImprovement2;
 					}
 				}
 			}
-			
+
 			if ((eUpgradeImprovement != NO_IMPROVEMENT) && (eUpgradeImprovement != eImprovement))
 			{
 				eImprovement = eUpgradeImprovement;
 			}
 		}
-		
+
 		iYield += calculateImprovementYieldChange(eImprovement, eYield, getOwnerINLINE(), false);
 	}
-	
+
 	RouteTypes eRoute = (RouteTypes)GC.getBuildInfo(eBuild).getRoute();
 	if (eRoute != NO_ROUTE)
 	{
@@ -9156,7 +9356,7 @@ int CvPlot::getYieldWithBuild(BuildTypes eBuild, YieldTypes eYield, bool bWithUp
 		}
 	}
 
-	
+
 	return iYield;
 }
 
@@ -9840,4 +10040,134 @@ bool CvPlot::checkLateEra() const
 
 	return (GET_PLAYER(ePlayer).getCurrentEra() > GC.getNumEraInfos() / 2);
 }
+
+// UncutDragon
+bool CvPlot::hasDefender(bool bCheckCanAttack, PlayerTypes eOwner, PlayerTypes eAttackingPlayer, const CvUnit* pAttacker, bool bTestAtWar, bool bTestPotentialEnemy, bool bTestCanMove) const
+{
+	CLLNode<IDInfo>* pUnitNode;
+	CvUnit* pLoopUnit;
+
+	pUnitNode = headUnitNode();
+	while (pUnitNode != NULL)
+	{
+		pLoopUnit = ::getUnit(pUnitNode->m_data);
+		pUnitNode = nextUnitNode(pUnitNode);
+
+		if ((eOwner == NO_PLAYER) || (pLoopUnit->getOwnerINLINE() == eOwner))
+		{
+			if ((eAttackingPlayer == NO_PLAYER) || !(pLoopUnit->isInvisible(GET_PLAYER(eAttackingPlayer).getTeam(), false)))
+			{
+				if (!bTestAtWar || eAttackingPlayer == NO_PLAYER || pLoopUnit->isEnemy(GET_PLAYER(eAttackingPlayer).getTeam(), this) || (NULL != pAttacker && pAttacker->isEnemy(GET_PLAYER(pLoopUnit->getOwnerINLINE()).getTeam(), this)))
+				{
+					if (!bTestPotentialEnemy || (eAttackingPlayer == NO_PLAYER) ||  pLoopUnit->isPotentialEnemy(GET_PLAYER(eAttackingPlayer).getTeam(), this) || (NULL != pAttacker && pAttacker->isPotentialEnemy(GET_PLAYER(pLoopUnit->getOwnerINLINE()).getTeam(), this)))
+					{
+						if (!bTestCanMove || (pLoopUnit->canMove() && !(pLoopUnit->isCargo())))
+						{
+							if ((pAttacker == NULL) || (pAttacker->getDomainType() != DOMAIN_AIR) || (pLoopUnit->getDamage() < pAttacker->airCombatLimit()))
+							{
+								if (!bCheckCanAttack || (pAttacker == NULL) || (pAttacker->canAttack(*pLoopUnit)))
+								{
+									// found a valid defender
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// there are no defenders
+	return false;
+}
+// /UncutDragon
+
+//Added in Final Frontier SDK: TC01
+//	Checks if a plot is a valid plot to spawn barbarians on
+bool CvPlot::canBarbSpawn() const
+{
+	bool bValid = true;
+	if (getFeatureType() != NO_FEATURE)
+	{
+		if (GC.getFeatureInfo(getFeatureType()).isNoBarbarianSpawn())
+		{
+			bValid = false;
+		}
+	}
+	
+	return bValid;
+}
+//End of Final Frontier SDK
+
+// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+int CvPlot::getPlayerDangerCache(PlayerTypes ePlayer, int iRange)
+{
+	if (NULL == m_apaiPlayerDangerCache)
+	{
+		m_apaiPlayerDangerCache = new short*[MAX_PLAYERS];
+		for (int iI = 0; iI < MAX_PLAYERS; ++iI)
+		{
+			m_apaiPlayerDangerCache[iI] = NULL;
+		}
+	}
+
+	if (NULL == m_apaiPlayerDangerCache[ePlayer])
+	{
+		m_apaiPlayerDangerCache[ePlayer] = new short[DANGER_RANGE + 1];
+		for (int iI = 0; iI < DANGER_RANGE + 1; ++iI)
+		{
+			m_apaiPlayerDangerCache[ePlayer][iI] = MAX_SHORT;
+		}
+	}
+
+	return m_apaiPlayerDangerCache[ePlayer][iRange];
+}
+
+void CvPlot::setPlayerDangerCache(PlayerTypes ePlayer, int iRange, int iNewValue)
+{
+	if (NULL == m_apaiPlayerDangerCache)
+	{
+		m_apaiPlayerDangerCache = new short*[MAX_PLAYERS];
+		for (int iI = 0; iI < MAX_PLAYERS; ++iI)
+		{
+			m_apaiPlayerDangerCache[iI] = NULL;
+		}
+	}
+
+	if (NULL == m_apaiPlayerDangerCache[ePlayer])
+	{
+		m_apaiPlayerDangerCache[ePlayer] = new short[DANGER_RANGE + 1];
+		for (int iI = 0; iI < DANGER_RANGE + 1; ++iI)
+		{
+			m_apaiPlayerDangerCache[ePlayer][iI] = MAX_SHORT;
+		}
+	}
+
+	m_apaiPlayerDangerCache[ePlayer][iRange] = iNewValue;
+}
+
+void CvPlot::invalidatePlayerDangerCache(PlayerTypes ePlayer, int iRange)
+{
+	if (NULL == m_apaiPlayerDangerCache)
+	{
+		m_apaiPlayerDangerCache = new short*[MAX_PLAYERS];
+		for (int iI = 0; iI < MAX_PLAYERS; ++iI)
+		{
+			m_apaiPlayerDangerCache[iI] = NULL;
+		}
+	}
+
+	if (NULL == m_apaiPlayerDangerCache[ePlayer])
+	{
+		m_apaiPlayerDangerCache[ePlayer] = new short[DANGER_RANGE + 1];
+		for (int iI = 0; iI < DANGER_RANGE + 1; ++iI)
+		{
+			m_apaiPlayerDangerCache[ePlayer][iI] = MAX_SHORT;
+		}
+	}
+
+	m_apaiPlayerDangerCache[ePlayer][iRange] = MAX_SHORT;
+}
+// Sanguo Mod Performance, end
 

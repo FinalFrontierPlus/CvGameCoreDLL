@@ -214,6 +214,21 @@ m_iUSE_ON_UNIT_CREATED_CALLBACK(0),
 m_iUSE_ON_UNIT_LOST_CALLBACK(0),
 m_paHints(NULL),
 m_paMainMenus(NULL)
+// UncutDragon
+// Lead from Behind flags
+,m_bLFBEnable(false)
+,m_iLFBBasedOnGeneral(1)
+,m_iLFBBasedOnExperience(1)
+,m_iLFBBasedOnLimited(1)
+,m_iLFBBasedOnHealer(1)
+,m_iLFBBasedOnAverage(1)
+,m_bLFBUseSlidingScale(true)
+,m_iLFBAdjustNumerator(1)
+,m_iLFBAdjustDenominator(3)
+,m_bLFBUseCombatOdds(true)
+,m_iCOMBAT_DIE_SIDES(-1)
+,m_iCOMBAT_DAMAGE(-1)
+// /UncutDragon
 {
 }
 
@@ -2655,6 +2670,22 @@ void CvGlobals::cacheGlobals()
 	m_iUSE_ON_UPDATE_CALLBACK = getDefineINT("USE_ON_UPDATE_CALLBACK");
 	m_iUSE_ON_UNIT_CREATED_CALLBACK = getDefineINT("USE_ON_UNIT_CREATED_CALLBACK");
 	m_iUSE_ON_UNIT_LOST_CALLBACK = getDefineINT("USE_ON_UNIT_LOST_CALLBACK");
+
+	// UncutDragon
+	// Lead from Behind flags
+	m_bLFBEnable = !(getDefineINT("LFB_ENABLE") == 0);
+	m_iLFBBasedOnGeneral = getDefineINT("LFB_BASEDONGENERAL");
+	m_iLFBBasedOnExperience = getDefineINT("LFB_BASEDONEXPERIENCE");
+	m_iLFBBasedOnLimited = getDefineINT("LFB_BASEDONLIMITED");
+	m_iLFBBasedOnHealer = getDefineINT("LFB_BASEDONHEALER");
+	m_iLFBBasedOnAverage = std::max(1, (m_iLFBBasedOnGeneral+m_iLFBBasedOnLimited+m_iLFBBasedOnHealer+(5*m_iLFBBasedOnExperience)+3)/4);
+	m_bLFBUseSlidingScale = !(getDefineINT("LFB_USESLIDINGSCALE") == 0);
+	m_iLFBAdjustNumerator = getDefineINT("LFB_ADJUSTNUMERATOR");
+	m_iLFBAdjustDenominator = getDefineINT("LFB_ADJUSTDENOMINATOR");
+	m_bLFBUseCombatOdds = !(getDefineINT("LFB_USECOMBATODDS") == 0);
+	m_iCOMBAT_DIE_SIDES = getDefineINT("COMBAT_DIE_SIDES");
+	m_iCOMBAT_DAMAGE = getDefineINT("COMBAT_DAMAGE");
+	// /UncutDragon
 }
 
 int CvGlobals::getDefineINT( const char * szName ) const
@@ -3579,3 +3610,66 @@ void CvGlobals::setBorderFinder(FAStar* pVal) { m_borderFinder = pVal; }
 void CvGlobals::setAreaFinder(FAStar* pVal) { m_areaFinder = pVal; }
 void CvGlobals::setPlotGroupFinder(FAStar* pVal) { m_plotGroupFinder = pVal; }
 CvDLLUtilityIFaceBase* CvGlobals::getDLLIFaceNonInl() { return m_pDLL; }
+
+// UncutDragon
+// Lead from Behind flags
+bool CvGlobals::getLFBEnable()
+{
+	return m_bLFBEnable;
+}
+
+int CvGlobals::getLFBBasedOnGeneral()
+{
+	return m_iLFBBasedOnGeneral;
+}
+
+int CvGlobals::getLFBBasedOnExperience()
+{
+	return m_iLFBBasedOnExperience;
+}
+
+int CvGlobals::getLFBBasedOnLimited()
+{
+	return m_iLFBBasedOnLimited;
+}
+
+int CvGlobals::getLFBBasedOnHealer()
+{
+	return m_iLFBBasedOnHealer;
+}
+
+int CvGlobals::getLFBBasedOnAverage()
+{
+	return m_iLFBBasedOnAverage;
+}
+
+bool CvGlobals::getLFBUseSlidingScale()
+{
+	return m_bLFBUseSlidingScale;
+}
+
+int CvGlobals::getLFBAdjustNumerator()
+{
+	return m_iLFBAdjustNumerator;
+}
+
+int CvGlobals::getLFBAdjustDenominator()
+{
+	return m_iLFBAdjustDenominator;
+}
+
+bool CvGlobals::getLFBUseCombatOdds()
+{
+	return m_bLFBUseCombatOdds;
+}
+
+int CvGlobals::getCOMBAT_DIE_SIDES()
+{
+	return m_iCOMBAT_DIE_SIDES;
+}
+
+int CvGlobals::getCOMBAT_DAMAGE()
+{
+	return m_iCOMBAT_DAMAGE;
+}
+// /UncutDragon

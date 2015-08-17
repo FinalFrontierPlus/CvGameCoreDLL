@@ -353,4 +353,8 @@ void getMissionTypeString(CvWString& szString, MissionTypes eMissionType);
 void getMissionAIString(CvWString& szString, MissionAITypes eMissionAI);
 void getUnitAIString(CvWString& szString, UnitAITypes eUnitAI);
 
+// UncutDragon
+int UDgetCombatOdds(int iAttackerLowFS,	int iAttackerHighFS, int iDefenderLowFS, int iDefenderHighFS, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds);
+// /UncutDragon
+
 #endif

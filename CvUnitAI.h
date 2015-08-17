@@ -239,6 +239,10 @@ protected:
 	// added so under cheat mode we can call protected functions for testing
 	friend class CvGameTextMgr;
 
+	// UncutDragon
+public:
+	void UDgetBetterAttacker(CvUnit** ppAttacker, const CvPlot* pPlot, bool bPotentialEnemy, int& iAIAttackOdds, int& iAttackerValue) const;
+	// /UncutDragon
 };
 
 #endif

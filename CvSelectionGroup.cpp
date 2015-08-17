@@ -155,7 +155,7 @@ void CvSelectionGroup::doTurn()
 	if (getNumUnits() > 0)
 	{
 		bool bHurt = false;
-		
+
 		// do unit's turns (checking for damage)
 		pUnitNode = headUnitNode();
 		while (pUnitNode != NULL)
@@ -173,12 +173,18 @@ void CvSelectionGroup::doTurn()
 
 		ActivityTypes eActivityType = getActivityType();
 
-		// wake unit if skipped last turn 
+		// wake unit if skipped last turn
 		//		or healing and automated or no longer hurt (automated healing is one turn at a time)
 		//		or on sentry and there is danger
 		if ((eActivityType == ACTIVITY_HOLD) ||
 			((eActivityType == ACTIVITY_HEAL) && (AI_isControlled() || !bHurt)) ||
-			((eActivityType == ACTIVITY_SENTRY) && (sentryAlert())))
+//Added in Final Frontier Plus: TC01
+			// +jlc: code for new sentry orders 
+			// ((eActivityType == ACTIVITY_SENTRY) && (sentryAlert())))
+			((eActivityType == ACTIVITY_SENTRY) && (sentryAlert())) ||
+			((eActivityType == ACTIVITY_SENTRY_WHILE_HEAL) && (sentryAlert() || (AI_isControlled() || !bHurt))))
+			// -jlc
+//End of Final Frontier Plus
 		{
 			setActivityType(ACTIVITY_AWAKE);
 		}
@@ -582,6 +588,7 @@ CvPlot* CvSelectionGroup::lastMissionPlot()
 		case MISSION_SEAPATROL:
 		case MISSION_HEAL:
 		case MISSION_SENTRY:
+		case MISSION_SENTRY_WHILE_HEAL:			//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
 		case MISSION_AIRLIFT:
 		case MISSION_NUKE:
 		case MISSION_RECON:
@@ -731,6 +738,15 @@ bool CvSelectionGroup::canStartMission(int iMission, int iData1, int iData2, CvP
 				return true;
 			}
 			break;
+
+//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
+		case MISSION_SENTRY_WHILE_HEAL:
+			if ((pLoopUnit->canSentry(pPlot)) && (pLoopUnit->canHeal(pPlot)))
+			{
+				return true;
+			}
+			break;
+//End of Final Frontier Plus
 
 		case MISSION_AIRLIFT:
 			if (pLoopUnit->canAirliftAt(pPlot, iData1, iData2))
@@ -887,7 +903,7 @@ bool CvSelectionGroup::canStartMission(int iMission, int iData1, int iData2, CvP
 			break;
 
 		case MISSION_GOLDEN_AGE:
-			//this means to play the animation only			
+			//this means to play the animation only
 			if (iData1 != -1)
 			{
 				return true;
@@ -1051,6 +1067,14 @@ void CvSelectionGroup::startMission()
 			bDelete = true;
 			break;
 
+//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
+		case MISSION_SENTRY_WHILE_HEAL:
+			setActivityType(ACTIVITY_SENTRY_WHILE_HEAL);
+			bNotify = true;
+			bDelete = true;
+			break;
+//End of Final Frontier Plus
+
 		case MISSION_AIRLIFT:
 		case MISSION_NUKE:
 		case MISSION_RECON:
@@ -1110,6 +1134,7 @@ void CvSelectionGroup::startMission()
 				case MISSION_SEAPATROL:
 				case MISSION_HEAL:
 				case MISSION_SENTRY:
+				case MISSION_SENTRY_WHILE_HEAL:			//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
 					break;
 
 				case MISSION_AIRLIFT:
@@ -1490,12 +1515,12 @@ void CvSelectionGroup::continueMission(int iSteps)
 									{
 										bAction = false;
 										bDone = true;
-										break;								
+										break;
 									}
 								}
 							}
 						}
-							 
+
 						if (groupPathTo(pTargetUnit->getX_INLINE(), pTargetUnit->getY_INLINE(), headMissionQueueNode()->m_data.iFlags))
 						{
 							bAction = true;
@@ -1519,6 +1544,7 @@ void CvSelectionGroup::continueMission(int iSteps)
 				case MISSION_SEAPATROL:
 				case MISSION_HEAL:
 				case MISSION_SENTRY:
+				case MISSION_SENTRY_WHILE_HEAL:			//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
 					FAssert(false);
 					break;
 
@@ -1603,6 +1629,7 @@ void CvSelectionGroup::continueMission(int iSteps)
 			case MISSION_SEAPATROL:
 			case MISSION_HEAL:
 			case MISSION_SENTRY:
+			case MISSION_SENTRY_WHILE_HEAL:			//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
 				FAssert(false);
 				break;
 
@@ -2215,6 +2242,7 @@ bool CvSelectionGroup::isWaiting() const
 		      (getActivityType() == ACTIVITY_SLEEP) ||
 					(getActivityType() == ACTIVITY_HEAL) ||
 					(getActivityType() == ACTIVITY_SENTRY) ||
+					(getActivityType() == ACTIVITY_SENTRY_WHILE_HEAL) ||		//Added in Fnial Frontier Plus: TC01 (source: Pep's Unit Orders)
 					(getActivityType() == ACTIVITY_PATROL) ||
 					(getActivityType() == ACTIVITY_PLUNDER) ||
 					(getActivityType() == ACTIVITY_INTERCEPT));
@@ -2231,7 +2259,7 @@ bool CvSelectionGroup::isFull()
 		// do two passes, the first pass, we ignore units with speical cargo
 		int iSpecialCargoCount = 0;
 		int iCargoCount = 0;
-		
+
 		// first pass, count but ignore special cargo units
 		pUnitNode = headUnitNode();
 
@@ -2239,7 +2267,7 @@ bool CvSelectionGroup::isFull()
 		{
 			pLoopUnit = ::getUnit(pUnitNode->m_data);
 			pUnitNode = nextUnitNode(pUnitNode);
-			
+
 			if (pLoopUnit->cargoSpace() > 0)
 			{
 				iCargoCount++;
@@ -2254,7 +2282,7 @@ bool CvSelectionGroup::isFull()
 				return false;
 			}
 		}
-		
+
 		// if every unit in the group has special cargo, then check those, otherwise, consider ourselves full
 		if (iSpecialCargoCount >= iCargoCount)
 		{
@@ -2263,7 +2291,7 @@ bool CvSelectionGroup::isFull()
 			{
 				pLoopUnit = ::getUnit(pUnitNode->m_data);
 				pUnitNode = nextUnitNode(pUnitNode);
-				
+
 				if (!(pLoopUnit->isFull()))
 				{
 					return false;
@@ -2577,7 +2605,7 @@ bool CvSelectionGroup::canBombard(const CvPlot* pPlot)
 bool CvSelectionGroup::visibilityRange()
 {
 	int iMaxRange = 0;
-	
+
 	CLLNode<IDInfo>* pUnitNode = headUnitNode();
 	while (pUnitNode != NULL)
 	{
@@ -2676,7 +2704,7 @@ int CvSelectionGroup::countNumUnitAIType(UnitAITypes eUnitAI)
 	{
 		pLoopUnit = ::getUnit(pUnitNode->m_data);
 		pUnitNode = nextUnitNode(pUnitNode);
-		
+
 		// count all units if NO_UNITAI passed in
 		if (NO_UNITAI == eUnitAI || pLoopUnit->AI_getUnitAIType() == eUnitAI)
 		{
@@ -2929,7 +2957,7 @@ bool CvSelectionGroup::groupDeclareWar(CvPlot* pPlot, bool bForce)
 {
 	CvTeamAI& kTeam = GET_TEAM(getTeam());
 	TeamTypes ePlotTeam = pPlot->getTeam();
-	
+
 	if (!AI_isDeclareWar(pPlot))
 	{
 		return false;
@@ -2969,7 +2997,7 @@ bool CvSelectionGroup::groupAttack(int iX, int iY, int iFlags, bool& bFailedAlre
 	FAssertMsg(pDestPlot != NULL, "DestPlot is not assigned a valid value");
 
 	bool bStack = (isHuman() && ((getDomainType() == DOMAIN_AIR) || GET_PLAYER(getOwnerINLINE()).isOption(PLAYEROPTION_STACK_ATTACK)));
-    
+
 	bool bAttack = false;
 	bFailedAlreadyFighting = false;
 
@@ -2985,11 +3013,17 @@ bool CvSelectionGroup::groupAttack(int iX, int iY, int iFlags, bool& bFailedAlre
 				if (pBestAttackUnit)
 				{
 					// if there are no defenders, do not attack
-					CvUnit* pBestDefender = pDestPlot->getBestDefender(NO_PLAYER, getOwnerINLINE(), pBestAttackUnit, true);
-					if (NULL == pBestDefender)
-					{
+					// UncutDragon
+					// original
+					//CvUnit* pBestDefender = pDestPlot->getBestDefender(NO_PLAYER, getOwnerINLINE(), pBestAttackUnit, true);
+					//if (NULL == pBestDefender)
+					//{
+					//	return false;
+					//}
+					// modified
+					if (!pDestPlot->hasDefender(false, NO_PLAYER, getOwnerINLINE(), pBestAttackUnit, true))
 						return false;
-					}
+					// /UncutDragon
 
 					bool bNoBlitz = (!pBestAttackUnit->isBlitz() || !pBestAttackUnit->isMadeAttack());
 
@@ -3024,8 +3058,8 @@ bool CvSelectionGroup::groupAttack(int iX, int iY, int iFlags, bool& bFailedAlre
 						argsList.add(gDLL->getPythonIFace()->makePythonObject(pyPlot));	// pass in Plot class
 						long lResult=0;
 						gDLL->getPythonIFace()->callFunction(PYGameModule, "doCombat", argsList.makeFunctionArgs(), &lResult);
-						delete pyGroup;	// python fxn must not hold on to this pointer 
-						delete pyPlot;	// python fxn must not hold on to this pointer 
+						delete pyGroup;	// python fxn must not hold on to this pointer
+						delete pyPlot;	// python fxn must not hold on to this pointer
 						if (lResult == 1)
 						{
 							break;
@@ -3055,7 +3089,7 @@ bool CvSelectionGroup::groupAttack(int iX, int iY, int iFlags, bool& bFailedAlre
 							{
 								AI_queueGroupAttack(iX, iY);
 							}
-							
+
 							break;
 						}
 					}
@@ -3151,7 +3185,7 @@ bool CvSelectionGroup::groupPathTo(int iX, int iY, int iFlags)
 			return false;
 		}
 	}
-	
+
 	bool bForce = false;
 	MissionAITypes eMissionAI = AI_getMissionAIType();
 	if (eMissionAI == MISSIONAI_BLOCKADE || eMissionAI == MISSIONAI_PILLAGE)
@@ -3167,7 +3201,7 @@ bool CvSelectionGroup::groupPathTo(int iX, int iY, int iFlags)
 	bool bEndMove = false;
 	if(pPathPlot == pDestPlot)
 		bEndMove = true;
-    
+
 	groupMove(pPathPlot, iFlags & MOVE_THROUGH_ENEMY, NULL, bEndMove);
 
 	return true;
@@ -3278,9 +3312,9 @@ void CvSelectionGroup::setTransportUnit(CvUnit* pTransportUnit)
 	{
 		CvUnit* pHeadUnit = getHeadUnit();
 		FAssertMsg(pHeadUnit != NULL, "non-zero group without head unit");
-		
+
 		int iCargoSpaceAvailable = pTransportUnit->cargoSpaceAvailable(pHeadUnit->getSpecialUnitType(), pHeadUnit->getDomainType());
-		
+
 		// if no space at all, give up
 		if (iCargoSpaceAvailable < 1)
 		{
@@ -3297,9 +3331,9 @@ void CvSelectionGroup::setTransportUnit(CvUnit* pTransportUnit)
 			}
 			return;
 		}
-		
+
 		FAssertMsg(iCargoSpaceAvailable >= getNumUnits(), "cargo size too small");
-		
+
 		// setTransportUnit removes the unit from the current group (at least currently), so we have to be careful in the loop here
 		// so, loop until we do not load one
 		bool bLoadedOne;
@@ -3313,7 +3347,7 @@ void CvSelectionGroup::setTransportUnit(CvUnit* pTransportUnit)
 			{
 				CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
 				pUnitNode = nextUnitNode(pUnitNode);
-				
+
 				// just in case implementation of setTransportUnit changes, check to make sure this unit is not already loaded
 				if (pLoopUnit != NULL && pLoopUnit->getTransportUnit() != pTransportUnit)
 				{
@@ -3339,7 +3373,7 @@ void CvSelectionGroup::setTransportUnit(CvUnit* pTransportUnit)
 		{
 			CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
 			pUnitNode = nextUnitNode(pUnitNode);
-			
+
 			if (pLoopUnit != NULL)
 			{
 				// unload unit
@@ -3628,7 +3662,7 @@ void CvSelectionGroup::setActivityType(ActivityTypes eNewValue)
 }
 
 
-AutomateTypes CvSelectionGroup::getAutomateType() const														
+AutomateTypes CvSelectionGroup::getAutomateType() const
 {
 	return m_eAutomateType;
 }
@@ -3662,7 +3696,7 @@ void CvSelectionGroup::setAutomateType(AutomateTypes eNewValue)
 				{
 					CvUnit* pCargoUnit = ::getUnit(pUnitNode->m_data);
 					pUnitNode = pPlot->nextUnitNode(pUnitNode);
-					
+
 					CvUnit* pTransportUnit = pCargoUnit->getTransportUnit();
 					if (pTransportUnit != NULL && pTransportUnit->getGroup() == this)
 					{
@@ -3796,7 +3830,7 @@ bool CvSelectionGroup::addUnit(CvUnit* pUnit, bool bMinimalChange)
 	CLLNode<IDInfo>* pUnitNode;
 	CvUnit* pLoopUnit;
 	bool bAdded;
- 
+
 	if (!(pUnit->canJoinGroup(pUnit->plot(), this)))
 	{
 		return false;
@@ -3921,14 +3955,14 @@ void CvSelectionGroup::mergeIntoGroup(CvSelectionGroup* pSelectionGroup)
 	{
 		bChangedUnitAI = false;
 
-		// loop over all the units, moving them to the new group, 
+		// loop over all the units, moving them to the new group,
 		// stopping if we had to change a unit AI, because doing so removes that unit from our group, so we have to start over
 		CLLNode<IDInfo>* pUnitNode = headUnitNode();
 		while (pUnitNode != NULL && !bChangedUnitAI)
 		{
 			CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
 			pUnitNode = nextUnitNode(pUnitNode);
-			
+
 			if (pLoopUnit != NULL)
 			{
 				UnitAITypes eUnitAI = pLoopUnit->AI_getUnitAIType();
@@ -3971,7 +4005,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 	{
 		return this;
 	}
-	
+
 	CLLNode<IDInfo>* pUnitNode = headUnitNode();
 	CvUnit* pOldHeadUnit = ::getUnit(pUnitNode->m_data);
 	FAssertMsg(pOldHeadUnit != NULL, "non-zero group without head unit");
@@ -3991,7 +4025,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 	// the AI of the new head (the remainder will get the AI of the old head)
 	// UnitAITypes eNewHeadAI = pNewHeadUnit->AI_getUnitAIType();
 
-	// pRemainderHeadUnit is the head unit of the group that contains the remainder of units 
+	// pRemainderHeadUnit is the head unit of the group that contains the remainder of units
 	CvUnit* pRemainderHeadUnit = NULL;
 
 	// if the new head is not the old head, then make the old head the remainder head
@@ -4000,7 +4034,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 	{
 		pRemainderHeadUnit = pOldHeadUnit;
 	}
-	
+
 	// try to find remainder head with same AI as head, if we cannot find one, we will split the rest of the group up
 	if (pRemainderHeadUnit == NULL)
 	{
@@ -4010,7 +4044,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 		{
 			CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
 			pUnitNode = nextUnitNode(pUnitNode);
-			
+
 			if (pLoopUnit != NULL && pLoopUnit != pNewHeadUnit)
 			{
 				UnitAITypes eLoopUnitAI = pLoopUnit->AI_getUnitAIType();
@@ -4021,10 +4055,10 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 			}
 		}
 	}
-	
+
 	CvSelectionGroup* pSplitGroup = NULL;
 	CvSelectionGroup* pRemainderGroup = NULL;
-	
+
 	// make the new group for the new head
 	pNewHeadUnit->joinGroup(NULL);
 	pSplitGroup = pNewHeadUnit->getGroup();
@@ -4039,22 +4073,22 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 	}
 
 	// loop until this group is empty, trying to move different AI types each time
-	
-	
+
+
 	//Exhibit of why i HATE iustus code sometimes
 	//unsigned int unitAIBitField = 0;
 	//setBit(unitAIBitField, eNewHeadAI);
-	
+
 	bool abUnitAIField[NUM_UNITAI_TYPES];
 	for (int iI = 0; iI < NUM_UNITAI_TYPES; iI++)
 	{
 		abUnitAIField[iI] = false;
 	}
-	
+
 	while (getNumUnits())
 	{
 		UnitAITypes eTargetUnitAI = NO_UNITAI;
-	
+
 		// loop over all the units, find the next different UnitAI and move one of each
 		bool bDestinationSplit = (pSplitGroup->getNumUnits() < iSplitSize);
 		pUnitNode = headUnitNode();
@@ -4062,11 +4096,11 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 		{
 			CvUnit* pLoopUnit = ::getUnit(pUnitNode->m_data);
 			pUnitNode = nextUnitNode(pUnitNode);
-			
+
 			if (pLoopUnit != NULL)
 			{
 				UnitAITypes eLoopUnitAI = pLoopUnit->AI_getUnitAIType();
-				
+
 				// if we have not found a new type to move, is this a new unitai?
 				// note, if there eventually are unitAIs above 31, we will just always move those, which is fine
 				if (eTargetUnitAI == NO_UNITAI && !abUnitAIField[eLoopUnitAI])
@@ -4074,11 +4108,11 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 					eTargetUnitAI =  eLoopUnitAI;
 					abUnitAIField[eLoopUnitAI] = true;
 				}
-				
+
 				// is this the right UnitAI?
 				if (eLoopUnitAI == eTargetUnitAI)
 				{
-					// move this unit to the appropriate group 
+					// move this unit to the appropriate group
 					if (bDestinationSplit)
 					{
 						pLoopUnit->joinGroup(pSplitGroup);
@@ -4089,7 +4123,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 						// (if pRemainderGroup NULL, it gets its own group)
 						pRemainderGroup = pLoopUnit->getGroup();
 					}
-					
+
 					// if we moved to remainder, try for next unit AI
 					if (!bDestinationSplit)
 					{
@@ -4106,7 +4140,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 			}
 
 		}
-		
+
 		// clear bitfield, all types are valid again
 		for (int iI = 0; iI < NUM_UNITAI_TYPES; iI++)
 		{
@@ -4115,7 +4149,7 @@ CvSelectionGroup* CvSelectionGroup::splitGroup(int iSplitSize, CvUnit* pNewHeadU
 	}
 
 	FAssertMsg(pSplitGroup->getNumUnits() <= iSplitSize, "somehow our split group is too large");
-	
+
 	if (ppOtherGroup != NULL)
 	{
 		*ppOtherGroup = pRemainderGroup;
@@ -4194,7 +4228,7 @@ CvUnit* CvSelectionGroup::getUnitAt(int index) const
 		CLLNode<IDInfo>* pUnitNode = headUnitNode();
 		for(int i=0;i<index;i++)
 			pUnitNode = nextUnitNode(pUnitNode);
-		
+
 		CvUnit *pUnit = ::getUnit(pUnitNode->m_data);
 		return pUnit;
 	}
@@ -4263,7 +4297,7 @@ void CvSelectionGroup::clearMissionQueue()
 }
 
 
-int CvSelectionGroup::getLengthMissionQueue() const																
+int CvSelectionGroup::getLengthMissionQueue() const
 {
 	return m_missionQueue.getLength();
 }

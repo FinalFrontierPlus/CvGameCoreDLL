@@ -197,10 +197,17 @@ void CvDeal::addTrades(CLinkList<TradeData>* pFirstList, CLinkList<TradeData>* p
 				if ((pFirstList != NULL) && (pFirstList->getLength() > 0))
 				{
 					GET_PLAYER(getFirstPlayer()).AI_changePeacetimeTradeValue(getSecondPlayer(), iValue);
+					// Sanguo Mod Performance start, added by poyuzhe 07.26.09
+					GET_PLAYER(getFirstPlayer()).AI_invalidateAttitudeCache(getSecondPlayer());
+					GET_PLAYER(getSecondPlayer()).AI_invalidateAttitudeCache(getFirstPlayer());
+					// Sanguo Mod Performance, end
 				}
 				else
 				{
 					GET_PLAYER(getFirstPlayer()).AI_changePeacetimeGrantValue(getSecondPlayer(), iValue);
+					// Sanguo Mod Performance start, added by poyuzhe 07.26.09
+					GET_PLAYER(getFirstPlayer()).AI_invalidateAttitudeCache(getSecondPlayer());
+					// Sanguo Mod Performance, end
 				}
 			}
 			if ((pFirstList != NULL) && (pFirstList->getLength() > 0))
@@ -210,10 +217,17 @@ void CvDeal::addTrades(CLinkList<TradeData>* pFirstList, CLinkList<TradeData>* p
 				if ((pSecondList != NULL) && (pSecondList->getLength() > 0))
 				{
 					GET_PLAYER(getSecondPlayer()).AI_changePeacetimeTradeValue(getFirstPlayer(), iValue);
+					// Sanguo Mod Performance start, added by poyuzhe 07.26.09
+					GET_PLAYER(getFirstPlayer()).AI_invalidateAttitudeCache(getSecondPlayer());
+					GET_PLAYER(getSecondPlayer()).AI_invalidateAttitudeCache(getFirstPlayer());
+					// Sanguo Mod Performance, end
 				}
 				else
 				{
 					GET_PLAYER(getSecondPlayer()).AI_changePeacetimeGrantValue(getFirstPlayer(), iValue);
+					// Sanguo Mod Performance start, added by poyuzhe 07.26.09
+					GET_PLAYER(getSecondPlayer()).AI_invalidateAttitudeCache(getFirstPlayer());
+					// Sanguo Mod Performance, end
 				}
 			}
 		}

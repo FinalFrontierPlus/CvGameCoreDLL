@@ -285,7 +285,12 @@ int CvSelectionGroupAI::AI_attackOdds(const CvPlot* pPlot, bool bPotentialEnemy)
 
 	FAssert(getOwnerINLINE() != NO_PLAYER);
 
-	if (pPlot->getBestDefender(NO_PLAYER, getOwnerINLINE(), NULL, !bPotentialEnemy, bPotentialEnemy) == NULL)
+	// UncutDragon
+	// original
+	//if (pPlot->getBestDefender(NO_PLAYER, getOwnerINLINE(), NULL, !bPotentialEnemy, bPotentialEnemy) == NULL)
+	// modified
+	if (!pPlot->hasDefender(false, NO_PLAYER, getOwnerINLINE(), NULL, !bPotentialEnemy, bPotentialEnemy))
+	// /UncutDragon
 	{
 		return 100;
 	}
@@ -349,6 +354,12 @@ CvUnit* CvSelectionGroupAI::AI_getBestGroupAttacker(const CvPlot* pPlot, bool bP
 				{
 					if (bForce || pLoopUnit->canMoveInto(pPlot, /*bAttack*/ true, /*bDeclareWar*/ bPotentialEnemy))
 					{
+						// UncutDragon
+						if (GC.getLFBEnable() && GC.getLFBUseCombatOdds())
+						{
+							pLoopUnit->UDgetBetterAttacker(&pBestUnit, pPlot, bPotentialEnemy, iBestOdds, iValue);
+						} else {
+						// /UncutDragon
 						iOdds = pLoopUnit->AI_attackOdds(pPlot, bPotentialEnemy);
 						
 						iValue = iOdds;
@@ -372,6 +383,9 @@ CvUnit* CvSelectionGroupAI::AI_getBestGroupAttacker(const CvPlot* pPlot, bool bP
 							iBestOdds = iOdds;
 							pBestUnit = pLoopUnit;
 						}
+						// UncutDragon
+						}
+						// /UncutDragon
 					}
 				}
 			}

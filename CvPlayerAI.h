@@ -20,11 +20,11 @@ public:
 
   // inlined for performance reasons
 #ifdef _USRDLL
-  static CvPlayerAI& getPlayer(PlayerTypes ePlayer) 
+  static CvPlayerAI& getPlayer(PlayerTypes ePlayer)
   {
 	  FAssertMsg(ePlayer != NO_PLAYER, "Player is not assigned a valid value");
 	  FAssertMsg(ePlayer < MAX_PLAYERS, "Player is not assigned a valid value");
-	  return m_aPlayers[ePlayer]; 
+	  return m_aPlayers[ePlayer];
   }
 #endif
 	DllExport static CvPlayerAI& getPlayerNonInl(PlayerTypes ePlayer);
@@ -162,12 +162,12 @@ public:
 	int AI_neededWorkers(CvArea* pArea) const;
 	int AI_neededMissionaries(CvArea* pArea, ReligionTypes eReligion) const;
 	int AI_neededExecutives(CvArea* pArea, CorporationTypes eCorporation) const;
-	
+
 	int AI_missionaryValue(CvArea* pArea, ReligionTypes eReligion, PlayerTypes* peBestPlayer = NULL) const;
 	int AI_executiveValue(CvArea* pArea, CorporationTypes eCorporation, PlayerTypes* peBestPlayer = NULL) const;
-	
+
 	int AI_corporationValue(CorporationTypes eCorporation, CvCity* pCity = NULL) const;
-	
+
 	int AI_adjacentPotentialAttackers(CvPlot* pPlot, bool bTestCanMove = false) const;
 	int AI_totalMissionAIs(MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
 	int AI_areaMissionAIs(CvArea* pArea, MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
@@ -179,7 +179,7 @@ public:
 	int AI_enemyTargetMissionAIs(MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
 	int AI_enemyTargetMissionAIs(MissionAITypes* aeMissionAI, int iMissionAICount, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
 	int AI_wakePlotTargetMissionAIs(CvPlot* pPlot, MissionAITypes eMissionAI, CvSelectionGroup* pSkipSelectionGroup = NULL) const;
-	
+
 
 	CivicTypes AI_bestCivic(CivicOptionTypes eCivicOption) const;
 	int AI_civicValue(CivicTypes eCivic) const;
@@ -258,34 +258,34 @@ public:
 	virtual void AI_launch(VictoryTypes eVictory);
 
 	int AI_getCultureVictoryStage() const;
-	
+
 	int AI_cultureVictoryTechValue(TechTypes eTech) const;
-	
+
 	bool AI_isDoStrategy(int iStrategy) const;
 	void AI_forceUpdateStrategies();
 
 	void AI_nowHasTech(TechTypes eTech);
-	
+
     int AI_countDeadlockedBonuses(CvPlot* pPlot) const;
-    
+
     int AI_getOurPlotStrength(CvPlot* pPlot, int iRange, bool bDefensiveBonuses, bool bTestMoves) const;
     int AI_getEnemyPlotStrength(CvPlot* pPlot, int iRange, bool bDefensiveBonuses, bool bTestMoves) const;
 
 	int AI_goldToUpgradeAllUnits(int iExpThreshold = 0) const;
 
 	int AI_goldTradeValuePercent() const;
-	
+
 	int AI_averageYieldMultiplier(YieldTypes eYield) const;
 	int AI_averageCommerceMultiplier(CommerceTypes eCommerce) const;
 	int AI_averageGreatPeopleMultiplier() const;
 	int AI_averageCommerceExchange(CommerceTypes eCommerce) const;
-	
+
 	int AI_playerCloseness(PlayerTypes eIndex, int iMaxDistance) const;
-	
+
 	int AI_getTotalCityThreat() const;
 	int AI_getTotalFloatingDefenseNeeded() const;
-	
-	
+
+
 	int AI_getTotalAreaCityThreat(CvArea* pArea) const;
 	int AI_countNumAreaHostileUnits(CvArea* pArea, bool bPlayer, bool bTeam, bool bNeutral, bool bHostile) const;
 	int AI_getTotalFloatingDefendersNeeded(CvArea* pArea) const;
@@ -294,49 +294,54 @@ public:
 	RouteTypes AI_bestAdvancedStartRoute(CvPlot* pPlot, int* piYieldValue = NULL) const;
 	UnitTypes AI_bestAdvancedStartUnitAI(CvPlot* pPlot, UnitAITypes eUnitAI) const;
 	CvPlot* AI_advancedStartFindCapitalPlot() const;
-	
+
 	bool AI_advancedStartPlaceExploreUnits(bool bLand);
 	void AI_advancedStartRevealRadius(CvPlot* pPlot, int iRadius);
 	bool AI_advancedStartPlaceCity(CvPlot* pPlot);
 	bool AI_advancedStartDoRoute(CvPlot* pFromPlot, CvPlot* pToPlot);
 	void AI_advancedStartRouteTerritory();
 	void AI_doAdvancedStart(bool bNoExit = false);
-	
+
 	int AI_getMinFoundValue() const;
-	
+
 	void AI_recalculateFoundValues(int iX, int iY, int iInnerRadius, int iOuterRadius) const;
-	
+
 	void AI_updateCitySites(int iMinFoundValueThreshold, int iMaxSites) const;
 	void AI_invalidateCitySites(int iMinFoundValueThreshold) const;
 	bool AI_isPlotCitySite(CvPlot* pPlot) const;
 	int AI_getNumAreaCitySites(int iAreaID, int& iBestValue) const;
 	int AI_getNumAdjacentAreaCitySites(int iWaterAreaID, int iExcludeArea, int& iBestValue) const;
-	
+
 	int AI_getNumCitySites() const;
 	CvPlot* AI_getCitySite(int iIndex) const;
-	
+
 	int AI_bestAreaUnitAIValue(UnitAITypes eUnitAI, CvArea* pArea, UnitTypes* peBestUnitType = NULL) const;
 	int AI_bestCityUnitAIValue(UnitAITypes eUnitAI, CvCity* pCity, UnitTypes* peBestUnitType = NULL) const;
-	
+
 	int AI_calculateTotalBombard(DomainTypes eDomain) const;
-	
+
 	int AI_getUnitClassWeight(UnitClassTypes eUnitClass) const;
 	int AI_getUnitCombatWeight(UnitCombatTypes eUnitCombat) const;
 	int AI_calculateUnitAIViability(UnitAITypes eUnitAI, DomainTypes eDomain) const;
-	
+
 	void AI_updateBonusValue();
 	void AI_updateBonusValue(BonusTypes eBonus);
-	
+
 	int AI_getAttitudeWeight(PlayerTypes ePlayer) const;
 
 	ReligionTypes AI_chooseReligion();
-	
+
 	int AI_getPlotAirbaseValue(CvPlot* pPlot) const;
 	int AI_getPlotCanalValue(CvPlot* pPlot) const;
 
 	bool AI_isPlotThreatened(CvPlot* pPlot, int iRange = -1, bool bTestMoves = true) const;
 
 	bool AI_isFirstTech(TechTypes eTech) const;
+
+	// Sanguo Mod Performance start, added by poyuzhe 07.22.09
+	void AI_invalidateAttitudeCache(PlayerTypes ePlayer);
+	void AI_invalidatePlotDangerCache(int iPlotIndex);
+	// Sanguo Mod Performance, end
 
 	// for serialization
   virtual void read(FDataStreamBase* pStream);
@@ -352,24 +357,24 @@ protected:
 	int m_iCivicTimer;
 	int m_iReligionTimer;
 	int m_iExtraGoldTarget;
-	
+
 	mutable int m_iStrategyHash;
 	mutable int m_iStrategyHashCacheTurn;
-	
-	
+
+
 	mutable int m_iAveragesCacheTurn;
-	
+
 	mutable int m_iAverageGreatPeopleMultiplier;
-	
+
 	mutable int *m_aiAverageYieldMultiplier;
 	mutable int *m_aiAverageCommerceMultiplier;
 	mutable int *m_aiAverageCommerceExchange;
-	
+
 	mutable int m_iUpgradeUnitsCacheTurn;
 	mutable int m_iUpgradeUnitsCachedExpThreshold;
 	mutable int m_iUpgradeUnitsCachedGold;
-	
-	
+
+
 	int *m_aiNumTrainAIUnits;
 	int *m_aiNumAIUnits;
 	int* m_aiSameReligionCounter;
@@ -386,14 +391,17 @@ protected:
 
 	mutable int* m_aiCloseBordersAttitudeCache;
 
+	// Sanguo Mod Performance, start, added by poyuzhe 7.26.09
+	mutable int* m_aiAttitudeCache;
+	// Sanguo Mod Performance, end
 
 	bool* m_abFirstContact;
 
 	int** m_aaiContactTimer;
 	int** m_aaiMemoryCount;
-	
+
 	mutable std::vector<int> m_aiAICitySites;
-	
+
 	bool m_bWasFinancialTrouble;
 	int m_iTurnLastProductionDirty;
 
@@ -405,21 +413,21 @@ protected:
 	void AI_doDiplo();
 	void AI_doSplit();
 	void AI_doCheckFinancialTrouble();
-	
+
 	bool AI_disbandUnit(int iExpThreshold, bool bObsolete);
-	
+
 	int AI_getStrategyHash() const;
 	void AI_calculateAverages() const;
-	
+
 	int AI_getHappinessWeight(int iHappy, int iExtraPop) const;
 	int AI_getHealthWeight(int iHealth, int iExtraPop) const;
-	
+
 	void AI_convertUnitAITypesForCrush();
 	int AI_eventValue(EventTypes eEvent, const EventTriggeredData& kTriggeredData) const;
-		
+
 	void AI_doEnemyUnitData();
 	void AI_invalidateCloseBordersAttitudeCache();
-	
+
 	friend class CvGameTextMgr;
 };
 

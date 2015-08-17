@@ -193,6 +193,7 @@ public:
 	bool isValidDomainForLocation(const CvUnit& unit) const;																					// Exposed to Python
 	bool isValidDomainForAction(const CvUnit& unit) const;																						// Exposed to Python
 	bool isImpassable() const;																															// Exposed to Python
+	bool canBarbSpawn() const;		//Added in Final Frontier SDK: TC01
 
 	DllExport int getX() const;																																				// Exposed to Python
 #ifdef _USRDLL
@@ -476,6 +477,12 @@ public:
 	DllExport bool shouldDisplayBridge(CvPlot* pToPlot, PlayerTypes ePlayer) const;
 	DllExport bool checkLateEra() const;
 
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+	int getPlayerDangerCache(PlayerTypes ePlayer, int iRange);
+	void setPlayerDangerCache(PlayerTypes ePlayer, int iRange, int iNewValue);
+	void invalidatePlayerDangerCache(PlayerTypes ePlayer, int iRange);
+	// Sanguo Mod Performance, end
+
 	void read(FDataStreamBase* pStream);
 	void write(FDataStreamBase* pStream);
 
@@ -557,6 +564,10 @@ protected:
 
 	std::vector<CvSymbol*> m_symbols;
 
+	// Sanguo Mod Performance, start, added by poyuzhe 08.13.09
+	short** m_apaiPlayerDangerCache;
+	// Sanguo Mod Performance, end
+
 	void doFeature();
 	void doCulture();
 
@@ -567,6 +578,11 @@ protected:
 
 	// added so under cheat mode we can access protected stuff
 	friend class CvGameTextMgr;
+
+	// UncutDragon
+public:
+	bool hasDefender(bool bCheckCanAttack, PlayerTypes eOwner, PlayerTypes eAttackingPlayer = NO_PLAYER, const CvUnit* pAttacker = NULL, bool bTestAtWar = false, bool bTestPotentialEnemy = false, bool bTestCanMove = false) const;
+	// /UncutDragon
 };
 
 #endif

@@ -633,12 +633,22 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 	FAssert((iAttackerStrength + iDefenderStrength) > 0);
 	FAssert((iAttackerFirepower + iDefenderFirepower) > 0);
 
-	iDefenderOdds = ((GC.getDefineINT("COMBAT_DIE_SIDES") * iDefenderStrength) / (iAttackerStrength + iDefenderStrength));
+	// UncutDragon
+	// original
+	//iDefenderOdds = ((GC.getDefineINT("COMBAT_DIE_SIDES") * iDefenderStrength) / (iAttackerStrength + iDefenderStrength));
+	// modified
+	iDefenderOdds = ((GC.getCOMBAT_DIE_SIDES() * iDefenderStrength) / (iAttackerStrength + iDefenderStrength));
+	// /UncutDragon
 	if (iDefenderOdds == 0)
 	{
 		return 1000;
 	}
-	iAttackerOdds = GC.getDefineINT("COMBAT_DIE_SIDES") - iDefenderOdds;	
+	// UncutDragon
+	// original
+	//iAttackerOdds = GC.getDefineINT("COMBAT_DIE_SIDES") - iDefenderOdds;	
+	// modified
+	iAttackerOdds = GC.getCOMBAT_DIE_SIDES() - iDefenderOdds;	
+	// /UncutDragon
 	if (iAttackerOdds == 0)
 	{
 		return 0;
@@ -649,8 +659,14 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 	// calculate damage done in one round
 	//////
 
-	iDamageToAttacker = std::max(1,((GC.getDefineINT("COMBAT_DAMAGE") * (iDefenderFirepower + iStrengthFactor)) / (iAttackerFirepower + iStrengthFactor)));
-	iDamageToDefender = std::max(1,((GC.getDefineINT("COMBAT_DAMAGE") * (iAttackerFirepower + iStrengthFactor)) / (iDefenderFirepower + iStrengthFactor)));
+	// UncutDragon
+	// original
+	//iDamageToAttacker = std::max(1,((GC.getDefineINT("COMBAT_DAMAGE") * (iDefenderFirepower + iStrengthFactor)) / (iAttackerFirepower + iStrengthFactor)));
+	//iDamageToDefender = std::max(1,((GC.getDefineINT("COMBAT_DAMAGE") * (iAttackerFirepower + iStrengthFactor)) / (iDefenderFirepower + iStrengthFactor)));
+	// modified
+	iDamageToAttacker = std::max(1,((GC.getCOMBAT_DAMAGE() * (iDefenderFirepower + iStrengthFactor)) / (iAttackerFirepower + iStrengthFactor)));
+	iDamageToDefender = std::max(1,((GC.getCOMBAT_DAMAGE() * (iAttackerFirepower + iStrengthFactor)) / (iDefenderFirepower + iStrengthFactor)));
+	// /UncutDragon
 
 	// calculate needed rounds.
 	// Needed rounds = round_up(health/damage)
@@ -672,6 +688,11 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 
 	iDefenderLowFS = (pAttacker->immuneToFirstStrikes()) ? 0 : pDefender->firstStrikes();
 	iDefenderHighFS = (pAttacker->immuneToFirstStrikes()) ? 0 : (pDefender->firstStrikes() + pDefender->chanceFirstStrikes());
+
+	// UncutDragon
+	if (GC.getLFBEnable())
+		return UDgetCombatOdds(iAttackerLowFS, iAttackerHighFS, iDefenderLowFS, iDefenderHighFS, iNeededRoundsAttacker, iNeededRoundsDefender, iAttackerOdds);
+	// /UncutDragon
 
 	// For every possible first strike event, calculate the odds of combat.
 	// Then, add these to the total, weighted to the chance of that first 
@@ -706,7 +727,12 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 					// this needs to be in floating point math
 					//////
 
-					fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI3) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), (iFirstStrikes - iI3));
+					// UncutDragon
+					// original
+					//fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI3) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), (iFirstStrikes - iI3));
+					// modified
+					fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI3) * pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), (iFirstStrikes - iI3));
+					// /UncutDragon
 
 					// calculate chance assuming iI3 first strike hits: fOddsAfterEvent
 					//////
@@ -731,7 +757,12 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 							// this needs to be in floating point math
 							//////
 
-							fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), ((iMaxRounds - iI3) - iI4));
+							// UncutDragon
+							// original
+							//fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), ((iMaxRounds - iI3) - iI4));
+							// modified
+							fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), ((iMaxRounds - iI3) - iI4));
+							// /UncutDragon
 						}
 					}
 
@@ -770,7 +801,12 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 						// this needs to be in floating point math
 						//////
 
-						fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iDefenderOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI3) * pow((1.0f - (((float)iDefenderOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), (iFirstStrikes - iI3));
+						// UncutDragon
+						// original
+						//fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iDefenderOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI3) * pow((1.0f - (((float)iDefenderOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), (iFirstStrikes - iI3));
+						// modified
+						fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * pow((((float)iDefenderOdds) / GC.getCOMBAT_DIE_SIDES()), iI3) * pow((1.0f - (((float)iDefenderOdds) / GC.getCOMBAT_DIE_SIDES())), (iFirstStrikes - iI3));
+						// /UncutDragon
 
 						// calculate chance assuming iI3 first strike hits: fOddsAfterEvent
 						//////
@@ -790,7 +826,12 @@ int getCombatOdds(CvUnit* pAttacker, CvUnit* pDefender)
 							// this needs to be in floating point math
 							//////
 
-							fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), ((iMaxRounds - iI3) - iI4));
+							// UncutDragon
+							// original
+							//fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES")), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getDefineINT("COMBAT_DIE_SIDES"))), ((iMaxRounds - iI3) - iI4));
+							// modified
+							fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI4) * pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), ((iMaxRounds - iI3) - iI4));
+							// /UncutDragon
 						}
 
 						// Multiply these together, round them properly, and add 
@@ -1402,7 +1443,7 @@ int pathCost(FAStarNode* parent, FAStarNode* node, int data, const void* pointer
 					{
 						if (pToPlot->getFeatureType() != NO_FEATURE)
 						{
-							iCost += (GC.getPATH_DAMAGE_WEIGHT() * std::max(0, GC.getFeatureInfo(pToPlot->getFeatureType()).getTurnDamage())) / GC.getMAX_HIT_POINTS();
+							iCost += (GC.getPATH_DAMAGE_WEIGHT() * std::max(0, GC.getFeatureInfo(pToPlot->getFeatureType()).getTurnDamage() + pLoopUnit->featureDamageModifier(pToPlot->getFeatureType()))) / GC.getMAX_HIT_POINTS(); // FFP - Feature damage modifier
 						}
 
 						if (pToPlot->getExtraMovePathCost() > 0)
@@ -2002,6 +2043,7 @@ void getActivityTypeString(CvWString& szString, ActivityTypes eActivityType)
 	case ACTIVITY_SLEEP: szString = L"ACTIVITY_SLEEP"; break;
 	case ACTIVITY_HEAL: szString = L"ACTIVITY_HEAL"; break;
 	case ACTIVITY_SENTRY: szString = L"ACTIVITY_SENTRY"; break;
+	case ACTIVITY_SENTRY_WHILE_HEAL: szString = L"ACTIVITY_SENTRY_WHILE_HEAL"; break;		//Added in Final Frontier Plus: TC01 (source: Pep's Unit Orders)
 	case ACTIVITY_INTERCEPT: szString = L"ACTIVITY_SENTRY"; break;
 	case ACTIVITY_MISSION: szString = L"ACTIVITY_MISSION"; break;
 
@@ -2026,6 +2068,7 @@ void getMissionTypeString(CvWString& szString, MissionTypes eMissionType)
 	case MISSION_SEAPATROL: szString = L"MISSION_SEAPATROL"; break;
 	case MISSION_HEAL: szString = L"MISSION_HEAL"; break;
 	case MISSION_SENTRY: szString = L"MISSION_SENTRY"; break;
+	case MISSION_SENTRY_WHILE_HEAL: szString = L"MISSION_SENTRY_WHILE_HEAL"; break;		//Added in Final Frontier Plus: TC01
 	case MISSION_AIRLIFT: szString = L"MISSION_AIRLIFT"; break;
 	case MISSION_NUKE: szString = L"MISSION_NUKE"; break;
 	case MISSION_RECON: szString = L"MISSION_RECON"; break;
@@ -2147,7 +2190,324 @@ void getUnitAIString(CvWString& szString, UnitAITypes eUnitAI)
 	case UNITAI_CARRIER_AIR: szString = L"carrier air"; break;
 	case UNITAI_PARADROP: szString = L"paradrop"; break;
 	case UNITAI_ATTACK_CITY_LEMMING: szString = L"attack city lemming"; break;
+	case UNITAI_MISSILE_AIR: szString = L"missile air"; break;
 
 	default: szString = CvWString::format(L"unknown(%d)", eUnitAI); break;
 	}
 }
+
+// UncutDragon
+typedef std::vector<int> UDoddsAttOdds;
+typedef std::vector<UDoddsAttOdds> UDoddsDefRounds;
+typedef std::vector<UDoddsDefRounds> UDoddsAttRounds;
+typedef std::vector<UDoddsAttRounds> UDoddsFirstStrike;
+int UDlookupCombatOdds(int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds);
+int UDlookupCombatOdds(UDoddsFirstStrike* pOdds, int iFSIndex, int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds);
+int UDlookupCombatOdds(UDoddsAttOdds* pOdds, int iOddsIndex, int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds);
+int UDcalculateCombatOdds(int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds);
+
+const int UD_ODDS_INTERVAL_SIZE = 16;
+const int UD_ODDS_EXTRA_ACCURACY = 32;
+UDoddsFirstStrike pOddsCacheFSPos;
+UDoddsFirstStrike pOddsCacheFSNeg;
+
+// gets the combat odds using precomputed attacker/defender values instead of unit pointers
+int UDgetCombatOdds(int iAttackerLowFS,	int iAttackerHighFS, int iDefenderLowFS, int iDefenderHighFS, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds)
+{
+	int iDefenderOdds;
+	bool bFlip = false;
+	int iFirstStrikes;
+	int iI;
+	int iJ;
+	int iOdds = 0;
+
+	// Essentially, this means we're attacking with a seige engine and the defender is already at or below the max combat limit
+	// We're not allowed to attack regardless, since we can't do any damage - just return 100%
+	if (iNeededRoundsAttacker == 0)
+		return 1000;
+	// Because the best defender code calls us from the defender's perspective, we also need to check 'defender' rounds zero
+	if (iNeededRoundsDefender == 0)
+		return 0;
+
+	// If attacker has better than even chance to hit, we just flip it and calculate defender's chance to win
+	// This reduces how much we cache considerably (by half just from the fact we're only dealing with half the odds
+	// - but additionally, iNeededRounds'Defender' is guaranteed to stay low - at most 5 with standard settings).
+	iDefenderOdds = GC.getCOMBAT_DIE_SIDES() - iAttackerOdds;	
+	if (iAttackerOdds > iDefenderOdds)
+		bFlip = true;
+
+	// This is basically the two outside loops at the end of the standard getCombatOdds
+	// We just call our cache lookup in the middle (flipped if necessary) instead of the actual computation
+	for (iI = iAttackerLowFS; iI < iAttackerHighFS + 1; iI++)
+	{
+		for (iJ = iDefenderLowFS; iJ < iDefenderHighFS + 1; iJ++)
+		{
+			iFirstStrikes = iI - iJ;
+			if (bFlip)
+				iOdds += UDlookupCombatOdds(-iFirstStrikes, iNeededRoundsDefender, iNeededRoundsAttacker, iDefenderOdds);
+			else
+				iOdds += UDlookupCombatOdds(iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iAttackerOdds);
+		}
+	}
+
+	// Odds are a straight average of all the FS combinations (since all are equally possible)
+	iOdds /= ((iAttackerHighFS - iAttackerLowFS + 1) * (iDefenderHighFS - iDefenderLowFS + 1));
+
+	// Now that we have the final odds, we can remove the extra accuracy, rounding off
+	iOdds = (iOdds + (UD_ODDS_EXTRA_ACCURACY/2)) / UD_ODDS_EXTRA_ACCURACY;
+
+	// If we flipped the perspective in the computation/lookup, need to flip it back now
+	if (bFlip)
+		iOdds = 1000 - iOdds;
+
+	return iOdds;
+}
+
+// lookup the combat odds in the cache for a specific sub-result
+int UDlookupCombatOdds(int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds)
+{
+	int iOdds = 0;
+
+	// We actually maintain two caches - one for positive first strikes (plus zero), and one for negative
+	// This just makes the indices (and growing the array as needed) easy
+	if (iFirstStrikes < 0)
+		iOdds = UDlookupCombatOdds(&pOddsCacheFSNeg, (-iFirstStrikes)-1, iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iAttackerOdds);
+	else
+		iOdds = UDlookupCombatOdds(&pOddsCacheFSPos, iFirstStrikes, iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iAttackerOdds);
+
+	return iOdds;
+}
+
+int UDlookupCombatOdds(UDoddsFirstStrike* pOdds, int iFSIndex, int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds)
+{
+	// Grow the arrays as needed
+	// First dimension is the first strikes
+	int iInsert = iFSIndex - (int)(*pOdds).size() + 1;
+	if (iInsert > 0)
+	{
+		UDoddsAttRounds pAdd;
+		(*pOdds).insert((*pOdds).end(), iInsert, pAdd);
+	}
+
+	// Second dimension is the attacker rounds (starting at 1)
+	UDoddsAttRounds* pAttRounds = &((*pOdds)[iFSIndex]);
+	iInsert = iNeededRoundsAttacker - (int)(*pAttRounds).size();
+	if (iInsert > 0)
+	{
+		UDoddsDefRounds pAdd;
+		(*pAttRounds).insert((*pAttRounds).end(), iInsert, pAdd);
+	}
+
+	// Third dimension is the defender rounds (starting at 1)
+	UDoddsDefRounds* pDefRounds = &((*pAttRounds)[iNeededRoundsAttacker-1]);
+	iInsert = iNeededRoundsDefender - (int)(*pDefRounds).size();
+	if (iInsert > 0)
+	{
+		UDoddsAttOdds pAdd;
+		(*pDefRounds).insert((*pDefRounds).end(), iInsert, pAdd);
+	}
+
+	// Fourth (last) dimension is the odds index (odds/16)
+	UDoddsAttOdds* pAttOdds = &((*pDefRounds)[iNeededRoundsDefender-1]);
+
+	// Round down to the nearest interval
+	int iMinOddsIndex = iAttackerOdds / UD_ODDS_INTERVAL_SIZE;
+	int iMinOddsValue = iMinOddsIndex * UD_ODDS_INTERVAL_SIZE;
+
+	// Lookup the odds for the rounded down value
+	int iOdds = UDlookupCombatOdds(pAttOdds, iMinOddsIndex, iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iMinOddsValue);
+
+	// If we happened to hit an interval exactly, we're done
+	if (iMinOddsValue < iAttackerOdds)
+	{
+		// 'Round up' to the nearest interval - we don't actually need to compute it, we know
+		// it's one more than the rounded down interval
+		int iMaxOddsIndex = iMinOddsIndex+1;
+		int iMaxOddsValue = iMinOddsValue+UD_ODDS_INTERVAL_SIZE;
+
+		// Lookup the odds for the rounded up value
+		int iMaxOdds = UDlookupCombatOdds(pAttOdds, iMaxOddsIndex, iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iMaxOddsValue);
+		
+		// Do a simple weighted average on the two odds
+		iOdds += (((iAttackerOdds - iMinOddsValue) * (iMaxOdds - iOdds)) / UD_ODDS_INTERVAL_SIZE);
+	}
+
+	return iOdds;
+}
+
+int UDlookupCombatOdds(UDoddsAttOdds* pOdds, int iOddsIndex, int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds)
+{
+	int iNotComputed = -1;
+
+	// Index 0 -> AttackerOdds 0 -> no chance to win
+	if (iOddsIndex == 0)
+		return 0;
+
+	// We don't store all possible indices, just what we need/use
+	// So use position 0 to keep track of what index we start with
+	int iFirstIndex = iOddsIndex;
+	if ((*pOdds).size() == 0)
+		(*pOdds).push_back(iFirstIndex);
+	else
+		iFirstIndex = (*pOdds)[0];
+
+	int iRealIndex = iOddsIndex - iFirstIndex + 1;
+
+	// Index is before the start of our array
+	int iInsert = -iRealIndex+1;
+	if (iInsert > 0)
+	{
+		(*pOdds).insert((*pOdds).begin()+1, iInsert, iNotComputed);
+		iFirstIndex -= iInsert;
+		iRealIndex = 1;
+		(*pOdds)[0] = iFirstIndex;
+	}
+
+	// Index is past the end of our array
+	iInsert = iRealIndex - (int)(*pOdds).size() + 1;
+	if (iInsert > 0)
+		(*pOdds).insert((*pOdds).end(), iInsert, iNotComputed);
+
+	// Retrieve the odds from the array
+	int iOdds = (*pOdds)[iRealIndex];
+
+	// Odds aren't cached yet - need to actually calculate them
+	if (iOdds == iNotComputed)
+	{
+		iOdds = UDcalculateCombatOdds(iFirstStrikes, iNeededRoundsAttacker, iNeededRoundsDefender, iAttackerOdds);
+		(*pOdds)[iRealIndex] = iOdds;
+	}
+
+	return iOdds;
+}
+
+// Perform the actual odds calculation (basically identical to the default algorithm, except that we retain a little more accuracy)
+int UDcalculateCombatOdds(int iFirstStrikes, int iNeededRoundsAttacker, int iNeededRoundsDefender, int iAttackerOdds)
+{
+	float fOddsEvent;
+	float fOddsAfterEvent;
+	int iMaxRounds = iNeededRoundsAttacker + iNeededRoundsDefender - 1;
+	int iOdds = 0;
+	int iI3;
+	int iI4;
+
+	// This part is basically the inside of the outer two loops at the end of the standard getCombatOdds
+	if (iFirstStrikes > 0)
+	{
+		// Attacker gets more or equal first strikes than defender
+
+		// For every possible first strike getting hit, calculate both
+		// the chance of that event happening, as well as the rest of 
+		// the chance assuming the event has happened. Multiply these 
+		// together to get the total chance (Bayes rule). 
+		// iI3 counts the number of successful first strikes
+		//////
+
+		for (iI3 = 0; iI3 < (iFirstStrikes + 1); iI3++)
+		{
+			// event: iI3 first strikes hit the defender
+
+			// calculate chance of iI3 first strikes hitting: fOddsEvent
+			// f(k;n,p)=C(n,k)*(p^k)*((1-p)^(n-k)) 
+			// this needs to be in floating point math
+			//////
+
+			fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * std::pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI3) * std::pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), (iFirstStrikes - iI3));
+
+			// calculate chance assuming iI3 first strike hits: fOddsAfterEvent
+			//////
+
+			if (iI3 >= iNeededRoundsAttacker)
+			{
+				fOddsAfterEvent = 1;
+			}
+			else
+			{
+				fOddsAfterEvent = 0;
+
+				// odds for _at_least_ (iNeededRoundsAttacker - iI3) (the remaining hits 
+				// the attacker needs to make) out of (iMaxRounds - iI3) (the left over 
+				// rounds) is the sum of each _exact_ draw
+				//////
+
+				for (iI4 = (iNeededRoundsAttacker - iI3); iI4 < (iMaxRounds - iI3 + 1); iI4++)
+				{
+					// odds of exactly iI4 out of (iMaxRounds - iI3) draws.
+					// f(k;n,p)=C(n,k)*(p^k)*((1-p)^(n-k)) 
+					// this needs to be in floating point math
+					//////
+
+					fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * std::pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI4) * std::pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), ((iMaxRounds - iI3) - iI4));
+				}
+			}
+
+			// Multiply these together, round them properly, and add 
+			// the result to the total iOdds
+			//////
+
+			iOdds += ((int)((1000.0 * fOddsEvent * fOddsAfterEvent * (float)UD_ODDS_EXTRA_ACCURACY) + 0.5));
+		}
+	}
+	else // (iI < iJ)
+	{
+		// Attacker gets less first strikes than defender
+		int iDefenderOdds = GC.getCOMBAT_DIE_SIDES() - iAttackerOdds;
+		iFirstStrikes *= -1;
+
+		// For every possible first strike getting hit, calculate both
+		// the chance of that event happening, as well as the rest of 
+		// the chance assuming the event has happened. Multiply these 
+		// together to get the total chance (Bayes rule). 
+		// iI3 counts the number of successful first strikes
+		//////
+
+		for (iI3 = 0; iI3 < (iFirstStrikes + 1); iI3++)
+		{
+			// event: iI3 first strikes hit the defender
+
+			// First of all, check if the attacker is still alive.
+			// Otherwise, no further calculations need to occur 
+			/////
+
+			if (iI3 < iNeededRoundsDefender)
+			{
+				// calculate chance of iI3 first strikes hitting: fOddsEvent
+				// f(k;n,p)=C(n,k)*(p^k)*((1-p)^(n-k)) 
+				// this needs to be in floating point math
+				//////
+
+				fOddsEvent = ((float)getBinomialCoefficient(iFirstStrikes, iI3)) * std::pow((((float)iDefenderOdds) / GC.getCOMBAT_DIE_SIDES()), iI3) * std::pow((1.0f - (((float)iDefenderOdds) / GC.getCOMBAT_DIE_SIDES())), (iFirstStrikes - iI3));
+
+				// calculate chance assuming iI3 first strike hits: fOddsAfterEvent
+				//////
+
+				fOddsAfterEvent = 0;
+
+				// odds for _at_least_ iNeededRoundsAttacker (the remaining hits 
+				// the attacker needs to make) out of (iMaxRounds - iI3) (the left over 
+				// rounds) is the sum of each _exact_ draw
+				//////
+
+				for (iI4 = iNeededRoundsAttacker; iI4 < (iMaxRounds - iI3 + 1); iI4++)
+				{
+
+					// odds of exactly iI4 out of (iMaxRounds - iI3) draws.
+					// f(k;n,p)=C(n,k)*(p^k)*((1-p)^(n-k)) 
+					// this needs to be in floating point math
+					//////
+
+					fOddsAfterEvent += ((float)getBinomialCoefficient((iMaxRounds - iI3), iI4)) * std::pow((((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES()), iI4) * std::pow((1.0f - (((float)iAttackerOdds) / GC.getCOMBAT_DIE_SIDES())), ((iMaxRounds - iI3) - iI4));
+				}
+
+				// Multiply these together, round them properly, and add 
+				// the result to the total iOdds
+				//////
+
+				iOdds += ((int)((1000.0 * fOddsEvent * fOddsAfterEvent * (float)UD_ODDS_EXTRA_ACCURACY)+0.5));
+			}
+		}				
+	}
+
+	return iOdds;
+}
+// /UncutDragon

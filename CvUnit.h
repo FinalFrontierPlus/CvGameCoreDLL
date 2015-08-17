@@ -18,6 +18,15 @@ class CvSelectionGroup;
 class FAStarNode;
 class CvArtInfoUnit;
 
+//@MOD DWM
+struct CombatResult
+{
+	bool bDefenderWithdrawn;
+	CvPlot* pPlot;
+	int iAttacksCount;
+};
+//end mod
+
 struct DllExport CombatDetails					// Exposed to Python
 {
 	int iExtraCombatPercent;
@@ -43,6 +52,12 @@ struct DllExport CombatDetails					// Exposed to Python
 	int iCityBarbarianDefenseModifier;
 	int iClassDefenseModifier;
 	int iClassAttackModifier;
+	
+	// < Unit Combat Attack Defense Mod Start >
+	int iCombatDefenseModifier;
+	int iCombatAttackModifier;
+	// < Unit Combat Attack Defense Mod End   >
+
 	int iCombatModifierT;
 	int iCombatModifierA;
 	int iDomainModifierA;
@@ -394,8 +409,13 @@ public:
 	int terrainDefenseModifier(TerrainTypes eTerrain) const;								// Exposed to Python
 	int featureAttackModifier(FeatureTypes eFeature) const;								// Exposed to Python
 	int featureDefenseModifier(FeatureTypes eFeature) const;								// Exposed to Python
+	int featureDamageModifier(FeatureTypes eFeature) const;	// FFP - Feature damage modifier ; Exposed to Python
 	int unitClassAttackModifier(UnitClassTypes eUnitClass) const;						// Exposed to Python
 	int unitClassDefenseModifier(UnitClassTypes eUnitClass) const;					// Exposed to Python
+	// < Unit Combat Attack Defense Mod Start >
+	int unitCombatAttackModifier(UnitCombatTypes eUnitCombat) const;						// Exposed to Python
+	int unitCombatDefenseModifier(UnitCombatTypes eUnitCombat) const;					// Exposed to Python
+	// < Unit Combat Attack Defense Mod End   >
 	int unitCombatModifier(UnitCombatTypes eUnitCombat) const;							// Exposed to Python
 	int domainModifier(DomainTypes eDomain) const;													// Exposed to Python
 
@@ -520,10 +540,15 @@ public:
 	int getHillsDoubleMoveCount() const;																											
 	bool isHillsDoubleMove() const;																									// Exposed to Python					
 	void changeHillsDoubleMoveCount(int iChange);																							
-																																														
+
 	int getImmuneToFirstStrikesCount() const;																									
 	void changeImmuneToFirstStrikesCount(int iChange);																				
-																																														
+
+// FFP - Move on impassable - start
+	int getCanMoveImpassableCount() const;
+	void changeCanMoveImpassableCount(int iChange);																				
+// FFP - Move on impassable - end
+
 	int getExtraVisibilityRange() const;																						// Exposed to Python					
 	void changeExtraVisibilityRange(int iChange);
 
@@ -692,7 +717,10 @@ public:
 	void changeExtraFeatureAttackPercent(FeatureTypes eIndex, int iChange);
 	int getExtraFeatureDefensePercent(FeatureTypes eIndex) const;														// Exposed to Python
 	void changeExtraFeatureDefensePercent(FeatureTypes eIndex, int iChange);
-
+// FFP - Feature damage modifier - start
+	int getExtraFeatureDamagePercent(FeatureTypes eIndex) const;														// FFP; Exposed to Python
+	void changeExtraFeatureDamagePercent(FeatureTypes eIndex, int iChange);
+// FFP - Feature damage modifier - end
 	int getExtraUnitCombatModifier(UnitCombatTypes eIndex) const;														// Exposed to Python
 	void changeExtraUnitCombatModifier(UnitCombatTypes eIndex, int iChange);
 
@@ -727,6 +755,10 @@ public:
 	bool willRevealByMove(const CvPlot* pPlot) const;
 
 	bool isAlwaysHostile(const CvPlot* pPlot) const;
+//Added in Final Frontier: TC01
+	bool isStarbase() const;
+	bool isOtherStation() const;
+//End of Final Frontier
 
 	bool verifyStackValid();
 
@@ -753,6 +785,8 @@ public:
 
 	void read(FDataStreamBase* pStream);
 	void write(FDataStreamBase* pStream);
+
+	const TCHAR* getMovementSound() const;			//Added in Final Frontier: TC01
 
 	virtual void AI_init(UnitAITypes eUnitAI) = 0;
 	virtual void AI_uninit() = 0;
@@ -800,6 +834,7 @@ protected:
 	int m_iAlwaysHealCount;
 	int m_iHillsDoubleMoveCount;
 	int m_iImmuneToFirstStrikesCount;
+	int m_iCanMoveImpassableCount;	// FFP - Move on impassable
 	int m_iExtraVisibilityRange;
 	int m_iExtraMoves;
 	int m_iExtraMoveDiscount;
@@ -862,6 +897,7 @@ protected:
 	int* m_paiExtraTerrainDefensePercent;
 	int* m_paiExtraFeatureAttackPercent;
 	int* m_paiExtraFeatureDefensePercent;
+	int* m_paiExtraFeatureDamagePercent;	// FFP - Feature damage modifier
 	int* m_paiExtraUnitCombatModifier;
 
 	bool canAdvance(const CvPlot* pPlot, int iThreshold) const;
@@ -882,9 +918,34 @@ protected:
 	void getDefenderCombatValues(CvUnit& kDefender, const CvPlot* pPlot, int iOurStrength, int iOurFirepower, int& iTheirOdds, int& iTheirStrength, int& iOurDamage, int& iTheirDamage, CombatDetails* pTheirDetails = NULL) const;
 
 	bool isCombatVisible(const CvUnit* pDefender) const;
-	void resolveCombat(CvUnit* pDefender, CvPlot* pPlot, CvBattleDefinition& kBattle);
+	
+	void resolveCombat(CvUnit* pDefender, CvPlot* pPlot, CvBattleDefinition& kBattle);	
+
+	//@MOD DWM: [
+	CombatResult m_combatResult;
+	//end mod DWM
+
 	void resolveAirCombat(CvUnit* pInterceptor, CvPlot* pPlot, CvAirMissionDefinition& kBattle);
 	void checkRemoveSelectionAfterAttack();
+
+//Added in Final Frontier Plus: TC01
+	void doGravityField();
+	void doWormhole();
+	void doFeatureDamage();
+//End of Final Frontier SDK
+	// UncutDragon
+public:
+	bool isBetterDefenderThan(const CvUnit* pDefender, const CvUnit* pAttacker, int* pBestDefenderRank) const;
+	virtual void UDgetBetterAttacker(CvUnit** ppAttacker, const CvPlot* pPlot, bool bPotentialEnemy, int& iAIAttackOdds, int& iAttackerValue) const = 0;
+	int UDgetAttackerRank(const CvUnit* pDefender, int& iUnadjustedRank) const;
+	int UDgetDefenderRank(const CvUnit* pAttacker) const;
+protected:
+	int UDgetDefenderOdds(const CvUnit* pAttacker) const;
+	int UDgetValueAdjustedOdds(int iOdds) const;
+	int UDgetRelativeValueRating() const;
+	bool UDisBetterDefenderThan(const CvUnit* pDefender, const CvUnit* pAttacker, int* pBestDefenderRank) const;
+	int UDgetDefenderCombatOdds(const CvUnit* pAttacker) const;
+	// /UncutDragon
 };
 
 #endif
