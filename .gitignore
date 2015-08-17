@@ -5,3 +5,7 @@ Debug/
 CvGameCoreDLL.sdf
 CvGameCoreDLL.opensdf
 depends
+
+# To support use of someone manually editing the YOURMOD flag,
+# ignore further changes.
+Makefile
