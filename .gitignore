@@ -5,3 +5,5 @@ Debug/
 CvGameCoreDLL.sdf
 CvGameCoreDLL.opensdf
 depends
+*.idb
+*.pdb

@@ -42,9 +42,12 @@ a list of these files.
 
 "git diff --name-only bts_3.19 HEAD"
 
-That should output a list of the files that have changed since 
+That should output a list of the files that have changed since the project
+began.
 
-A script that does this automatically 
+A script that does this automatically will eventually be written.
+
+(Obviously, you can ignore changes to the documentation, gitignore, etc.).
 
 License:
 --------
