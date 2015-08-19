@@ -62,7 +62,8 @@ Firaxis and 2K own Civilization 4.
 "Final Frontier" is a scenario created by Jon Shafer for Civilization IV:
 Beyond the Sword when he was employed by Firaxis Games.
 
-"Final Frontier Plus" is an unofficial modification built 
+"Final Frontier Plus" is an unofficial modification built by TC01 and God-Emperor, 
+among other contributors (Please see the CREDITS.txt file in the main repo). 
 
 None of the above parties are liable for any damages caused by any part of
 Final Frontier Plus.

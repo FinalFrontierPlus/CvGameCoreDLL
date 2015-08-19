@@ -4,6 +4,7 @@ Final_Release/
 Debug/
 CvGameCoreDLL.sdf
 CvGameCoreDLL.opensdf
+CvGameCoreDLL.suo
 depends
 *.idb
 *.pdb

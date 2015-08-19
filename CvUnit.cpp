@@ -2494,7 +2494,11 @@ bool CvUnit::willRevealByMove(const CvPlot* pPlot) const
 
 bool CvUnit::canMoveInto(const CvPlot* pPlot, bool bAttack, bool bDeclareWar, bool bIgnoreLoad) const
 {
-	FAssertMsg(pPlot != NULL, "Plot is not assigned a valid value");
+//	FAssertMsg(pPlot != NULL, "Plot is not assigned a valid value");
+	// Implement God-Emperor fix to prevent CTD.
+	if (pPlot == NULL) { // Post 1.83 - it turns out a unit can try to withdraw off the map if it doesn't wrap
+		return false;
+	}
 
 	if (atPlot(pPlot))
 	{
