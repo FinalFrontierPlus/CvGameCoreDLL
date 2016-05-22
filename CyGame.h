@@ -106,6 +106,9 @@ public:
 	int getEstimateEndTurn() const;
 	void setEstimateEndTurn(int iNewValue);
 	int getTurnSlice() const;
+	// PB Mod begin, for increment and decrement
+	void incrementTurnTimer(int iNumTurnSlices);
+	// PB Mod end
 	int getMinutesPlayed() const;
 	int getTargetScore() const;
 	void setTargetScore(int iNewValue);
@@ -155,6 +158,10 @@ public:
 	bool isHotSeat();
 	bool isPbem();
 	bool isPitboss();
+	// PB Mod begin
+	bool isPitbossShortNames() const;
+	void setPitbossShortNames(bool bShort, int maxLenName, int maxLenDesc);
+	// PB Mod end
 	bool isSimultaneousTeamTurns();
 
 	bool isFinalInitialized();
@@ -162,6 +169,9 @@ public:
 	int /*PlayerTypes*/ getActivePlayer();
 	void setActivePlayer(int /*PlayerTypes*/ eNewValue, bool bForceHotSeat);
 	int getPausePlayer();
+	// PB Mod begin
+	void setPausePlayer(int /*PlayerTypes*/ eNewValue);
+	// PB Mod end
 	bool isPaused();
 	int /*UnitTypes*/ getBestLandUnit();
 	int getBestLandUnitCombat();
@@ -270,6 +280,11 @@ public:
 
 	bool isEventActive(int /*EventTriggerTypes*/ eTrigger);
 	void doControl(int iControl);
+	
+	// PB Mod begin
+	int setCivPassword(int ePlayer, const char *ssNewPw, const char *szAdminPw);
+	bool isDiploScreenUp() const;
+	// PB Mod end
 
 protected:
 	CvGame* m_pGame;

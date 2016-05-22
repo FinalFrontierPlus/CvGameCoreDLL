@@ -1822,7 +1822,14 @@ bool CvDLLButtonPopup::launchDoEspionagePopup(CvPopup* pPopup, CvPopupInfo &info
 	{
 		return (false);
 	}
-
+	
+	// PB Mod begin
+	// espionage popup bugfix: Compare turn slice timestamp. This fails for all quequed messages in pitboss save.
+	if(	GC.getGameINLINE().getTurnSlice() != info.getFlags() ){
+		return (false);
+	}	
+	// PB Mod end
+	
 	gDLL->getInterfaceIFace()->popupSetBodyString(pPopup, gDLL->getText("TXT_KEY_CHOOSE_ESPIONAGE_MISSION"));
 
 	for (int iLoop = 0; iLoop < GC.getNumEspionageMissionInfos(); iLoop++)
@@ -1863,7 +1870,14 @@ bool CvDLLButtonPopup::launchDoEspionageTargetPopup(CvPopup* pPopup, CvPopupInfo
 	{
 		return false;
 	}
-
+	
+	// PB Mod begin
+	// espionage popup bugfix: Compare turn slice timestamp. This fails for all quequed messages in pitboss save.
+	if(	GC.getGameINLINE().getTurnSlice() != info.getFlags() ){
+		return (false);
+	}
+	// PB Mod end
+	
 	CvPlot* pPlot = pUnit->plot();
 	CvCity* pCity = pPlot->getPlotCity();
 	PlayerTypes eTargetPlayer = pPlot->getOwnerINLINE();
