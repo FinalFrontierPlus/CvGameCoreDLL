@@ -889,6 +889,7 @@ public:
 	int getMaxBarbarianSpawnEra() const;
 	int getBarbarianChanceMultiplier() const;
 	int getUpgradePriceOverride() const;
+	int getSeeInvisibleTier() const;
 //End of Final Frontier SDK
 
 	bool isAnimal() const;				// Exposed to Python
@@ -1103,6 +1104,7 @@ protected:
 	int m_iMaxBarbarianSpawnEra;
 	int m_iBarbarianChanceMultiplier;
 	int m_iUpgradePriceOverride;
+	int m_iSeeInvisibleTier;
 //End of Final Frontier SDK
 
 	bool m_bAnimal;

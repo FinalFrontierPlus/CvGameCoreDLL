@@ -3061,6 +3061,7 @@ m_iMaxBarbarianSpawnEra(-1),
 m_iBarbarianChanceMultiplier(1),
 m_iUnitClassType(NO_UNITCLASS),
 m_iUpgradePriceOverride(-1),
+m_iSeeInvisibleTier(-1),
 //End of Final Frontier
 m_iSpecialUnitType(NO_SPECIALUNIT),
 m_iUnitCaptureClassType(NO_UNITCLASS),
@@ -3514,6 +3515,11 @@ int CvUnitInfo::getBarbarianChanceMultiplier() const
 int CvUnitInfo::getUpgradePriceOverride() const
 {
 	return m_iUpgradePriceOverride;
+}
+
+int CvUnitInfo::getSeeInvisibleTier() const
+{
+	return m_iSeeInvisibleTier;
 }
 //End of Final Frontier SDK
 
@@ -4395,6 +4401,7 @@ void CvUnitInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_iMinBarbarianSpawnEra);
 	stream->Read(&m_iBarbarianChanceMultiplier);
 	stream->Read(&m_iUpgradePriceOverride);
+	stream->Read(&m_iSeeInvisibleTier);
 //End of Final Frontier
 	stream->Read(&m_iUnitClassType);
 	stream->Read(&m_iSpecialUnitType);
@@ -4404,6 +4411,7 @@ void CvUnitInfo::read(FDataStreamBase* stream)
 	stream->Read(&m_iDefaultUnitAIType);
 	stream->Read(&m_iInvisibleType);
 	
+
 	int iNumInvisibleTypes;
 	stream->Read(&iNumInvisibleTypes);
 	for(int i=0;i<iNumInvisibleTypes;i++)
@@ -4736,6 +4744,7 @@ void CvUnitInfo::write(FDataStreamBase* stream)
 	stream->Write(m_iMinBarbarianSpawnEra);
 	stream->Write(m_iBarbarianChanceMultiplier);
 	stream->Write(m_iUpgradePriceOverride);
+	stream->Write(m_iSeeInvisibleTier);
 //End of Final Frontier
 	stream->Write(m_iUnitClassType);
 	stream->Write(m_iSpecialUnitType);
@@ -4930,6 +4939,18 @@ bool CvUnitInfo::read(CvXMLLoadUtility* pXML)
 		if(iInvisibleType != NO_INVISIBLE)
 		{
 			m_aiSeeInvisibleTypes.push_back(iInvisibleType);
+		}
+	}
+
+	// Added in Final Frontier Plus: TC01
+	// Implement SeeInvisibleTiers; populate the array with extra InvisibleTypes.
+	pXML->GetChildXmlValByName(&m_iSeeInvisibleTier, "iSeeInvisibleTier", -1);
+	for (int i = 0; i < GC.getNumInvisibleInfos(); i++)
+	{
+		int invisibleTier = GC.getInvisibleInfo((InvisibleTypes)i).getTier();
+		if (invisibleTier != -1 && invisibleTier <= m_iSeeInvisibleTier)
+		{
+			m_aiSeeInvisibleTypes.push_back(i);
 		}
 	}
 
