@@ -129,6 +129,9 @@ class CvUnitArtStyleTypeInfo;
 class CvVoteSourceInfo;
 class CvMainMenuInfo;
 
+// Added InvisibleInfo in FF+
+class CvInvisibleInfo;
+
 
 class CvGlobals
 {
@@ -407,9 +410,10 @@ public:
 	std::vector<CvInfoBase*>& getDenialInfo();
 	CvInfoBase& getDenialInfo(DenialTypes e);
 
+	// Modified in Final Frontier Plus; InvisibleInfo now exists.
 	int getNumInvisibleInfos();
-	std::vector<CvInfoBase*>& getInvisibleInfo();
-	CvInfoBase& getInvisibleInfo(InvisibleTypes e);
+	std::vector<CvInvisibleInfo*>& getInvisibleInfo();
+	CvInvisibleInfo& getInvisibleInfo(InvisibleTypes e);
 
 	int getNumVoteSourceInfos();
 	std::vector<CvVoteSourceInfo*>& getVoteSourceInfo();
@@ -1004,7 +1008,10 @@ protected:
 	std::vector<CvInfoBase*> m_paSeasonInfo;
 	std::vector<CvInfoBase*> m_paMonthInfo;
 	std::vector<CvInfoBase*> m_paDenialInfo;
-	std::vector<CvInfoBase*> m_paInvisibleInfo;
+
+	// Modified in Final Frontier Plus: InvisibleInfo now exists.
+	std::vector<CvInvisibleInfo*> m_paInvisibleInfo;
+	
 	std::vector<CvVoteSourceInfo*> m_paVoteSourceInfo;
 	std::vector<CvInfoBase*> m_paUnitCombatInfo;
 	std::vector<CvInfoBase*> m_paDomainInfo;

@@ -6542,4 +6542,33 @@ protected:
 	std::string m_szLoading;
 	std::string m_szLoadingSlideshow;
 };
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//  CLASS:      CvInvisibleInfo
+//!  \brief			holds information about Invisible types
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class CvInvisibleInfo : public CvInfoBase
+{
+public:
+	//constructor
+	DllExport CvInvisibleInfo();
+	//destructor
+	DllExport virtual ~CvInvisibleInfo();
+
+	bool read(CvXMLLoadUtility* pXML);
+
+	DllExport virtual void read(FDataStreamBase* pStream);
+	DllExport virtual void write(FDataStreamBase* pStream);
+
+	// Exposed to Python because "why not".
+	DllExport int getTier() const;
+	DllExport void setTier(int i);
+
+protected:
+
+	int m_iTier;
+};
+
+
 #endif

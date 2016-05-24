@@ -432,7 +432,8 @@ CvVoteSourceInfo* CyGlobalContext::getVoteSourceInfo(int i) const
 }
 
 
-CvInfoBase* CyGlobalContext::getInvisibleInfo(int i) const
+// Modified in Final Frontier Plus: CvInvisibleInfo now exists.
+CvInvisibleInfo* CyGlobalContext::getInvisibleInfo(int i) const
 {
 	return ((i >= 0 && i < GC.getNumInvisibleInfos()) ? &GC.getInvisibleInfo((InvisibleTypes)i) : NULL);
 }

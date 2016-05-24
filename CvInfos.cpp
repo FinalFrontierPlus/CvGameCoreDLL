@@ -23773,3 +23773,79 @@ bool CvMainMenuInfo::read(CvXMLLoadUtility* pXML)
 	return true;
 }
 
+//======================================================================================================
+//------------------------------------------------------------------------------------------------------
+//
+//  FUNCTION:   CvInvisibleInfo()
+//
+//  PURPOSE :   Default constructor
+//
+//------------------------------------------------------------------------------------------------------
+CvInvisibleInfo::CvInvisibleInfo() :
+m_iTier(-1)
+{
+}
+
+//------------------------------------------------------------------------------------------------------
+//
+//  FUNCTION:   ~CvInvisibleInfo()
+//
+//  PURPOSE :   Default destructor
+//
+//------------------------------------------------------------------------------------------------------
+CvInvisibleInfo::~CvInvisibleInfo()
+{
+}
+
+bool CvInvisibleInfo::read(CvXMLLoadUtility* pXML)
+{
+	int iVal;
+	bool bVal;
+	CvString szTextVal;
+
+	if (!CvInfoBase::read(pXML))
+	{
+		return false;
+	}
+
+	if (pXML->GetChildXmlValByName(&iVal, "iTier"))
+	{
+		setTier(iVal);
+	}
+	else
+	{
+		setTier(-1);
+	}
+
+	return true;
+}
+
+void CvInvisibleInfo::read(FDataStreamBase* pStream)
+{
+	CvInfoBase::read(pStream);
+
+	uint uiFlag=0;
+	pStream->Read(&uiFlag);	// flags for expansion
+
+	pStream->Read(&m_iTier);
+}
+
+void CvInvisibleInfo::write(FDataStreamBase* pStream)
+{
+	CvInfoBase::write(pStream);
+
+	uint uiFlag = 0;
+	pStream->Write(uiFlag);		// flag for expansion
+
+	pStream->Write(m_iTier);
+}
+
+int CvInvisibleInfo::getTier() const
+{
+	return m_iTier;
+}
+
+void CvInvisibleInfo::setTier(int i)
+{
+	m_iTier = i;
+}

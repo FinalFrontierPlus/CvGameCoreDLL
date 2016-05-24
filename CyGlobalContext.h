@@ -100,7 +100,10 @@ public:
 
 	CvInfoBase* getHints(int i) const;
 	CvMainMenuInfo* getMainMenus(int i) const;
-	CvInfoBase* getInvisibleInfo(int i) const;
+
+	// Modified in Final Frontier Plus: CvInvisibleInfo now exists.
+	CvInvisibleInfo* getInvisibleInfo(int i) const;
+
 	CvVoteSourceInfo* getVoteSourceInfo(int i) const;
 	CvInfoBase* getAttitudeInfo(int i) const;
 	CvInfoBase* getMemoryInfo(int i) const;

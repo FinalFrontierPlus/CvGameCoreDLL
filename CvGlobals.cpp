@@ -1531,18 +1531,19 @@ int CvGlobals::getNumInvisibleInfos()
 	return (int)m_paInvisibleInfo.size();
 }
 
-std::vector<CvInfoBase*>& CvGlobals::getInvisibleInfo()	// For Moose - XML Load Util, CvInfos
+// Modified in Final Frontier Plus: InvisibleInfo now exists.
+std::vector<CvInvisibleInfo*>& CvGlobals::getInvisibleInfo()	// For Moose - XML Load Util, CvInfos
 {
 	return m_paInvisibleInfo;
 }
 
-CvInfoBase& CvGlobals::getInvisibleInfo(InvisibleTypes e)
+CvInvisibleInfo& CvGlobals::getInvisibleInfo(InvisibleTypes e)
 {
 	FAssert(e > -1);
 	FAssert(e < GC.getNumInvisibleInfos());
 	return *(m_paInvisibleInfo[e]);
 }
-
+// End of Final Frontier Plus: InvisibleInfo now exists.
 
 int CvGlobals::getNumVoteSourceInfos()
 {
